@@ -58,6 +58,86 @@ Recursos suportados:
 - Atualização incremental
 - Cache de resultados
 
+### PostgreSQL com Query Customizada
+
+Para criar uma feature usando uma query SQL específica do PostgreSQL, siga este exemplo:
+
+```python
+from fstore.connectors import PostgreSQLConnector
+from fstore import FeatureStore
+
+# 1. Configurar conexão com PostgreSQL
+postgres_config = {
+    "host": "localhost",  # ou seu host
+    "port": 5432,        # sua porta
+    "database": "mydb",  # seu database
+    "user": "user",      # seu usuário
+    "password": "pass"   # sua senha
+}
+
+# 2. Inicializar o Feature Store e o conector
+store = FeatureStore()
+pg_connector = PostgreSQLConnector(postgres_config)
+
+# 3. Definir a feature com sua query customizada
+feature_definition = {
+    "name": "customer_purchase_frequency",
+    "description": "Frequência de compras do cliente nos últimos 30 dias",
+    "entity_id": "customer",
+    "feature_group": "customer_metrics",
+    "query": """
+        WITH customer_purchases AS (
+            SELECT 
+                customer_id,
+                COUNT(*) as purchase_count,
+                COUNT(*) / 30.0 as purchase_frequency
+            FROM orders
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY customer_id
+        )
+        SELECT 
+            customer_id as entity_id,
+            purchase_frequency as value,
+            NOW() as timestamp
+        FROM customer_purchases
+    """,
+    "schedule": "0 0 * * *"  # Executa diariamente à meia-noite
+}
+
+# 4. Registrar a feature
+store.register_feature(
+    feature_definition,
+    connector=pg_connector
+)
+```
+
+#### Requisitos da Query
+
+A query SQL deve seguir estas regras:
+1. Retornar exatamente 3 colunas:
+   - `entity_id`: identificador da entidade
+   - `value`: valor da feature
+   - `timestamp`: momento da medição
+
+2. Pode utilizar recursos SQL avançados:
+   - Subconsultas
+   - CTEs (WITH clauses)
+   - Joins
+   - Funções de agregação
+   - Window functions
+
+#### Agendamento
+
+O campo `schedule` aceita expressões cron para definir a frequência de atualização:
+- `0 0 * * *`: diário à meia-noite
+- `0 */1 * * *`: a cada hora
+- `0 0 * * 0`: semanal
+- `0 0 1 * *`: mensal
+
+#### Exemplo Completo
+
+Um exemplo completo está disponível em `examples/custom_postgres_feature.py`.
+
 ### MySQL
 
 Similar ao PostgreSQL, o conector MySQL permite extrair features de bancos MySQL.

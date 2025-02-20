@@ -8,7 +8,6 @@ import {
   Paper,
   Stack,
   IconButton,
-  Tooltip,
   LinearProgress,
 } from '@mui/material';
 import StorageIcon from '@mui/icons-material/Storage';
