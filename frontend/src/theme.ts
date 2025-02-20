@@ -16,8 +16,8 @@ const theme = createTheme({
       contrastText: '#000000',
     },
     background: {
-      default: '#424242', // Cinza médio
-      paper: '#4f4f4f',   // Cinza médio um pouco mais claro
+      default: '#666666', // Cinza médio mais claro
+      paper: '#777777',   // Cinza um pouco mais claro
     },
     text: {
       primary: '#ffffff',
@@ -86,7 +86,7 @@ const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: 'linear-gradient(180deg, #424242 0%, #4f4f4f 100%)',
+          background: 'linear-gradient(180deg, #666666 0%, #777777 100%)',
           boxShadow: '0 0 20px rgba(0, 242, 255, 0.1)',
         },
       },
@@ -94,7 +94,7 @@ const theme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          background: 'linear-gradient(180deg, #424242 0%, #4f4f4f 100%)',
+          background: 'linear-gradient(180deg, #666666 0%, #777777 100%)',
           borderRight: '1px solid rgba(0, 242, 255, 0.1)',
         },
       },
