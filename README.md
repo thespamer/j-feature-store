@@ -2,6 +2,82 @@
 
 FStore é uma plataforma poderosa e escalável de Feature Store que ajuda cientistas de dados e engenheiros de ML a gerenciar, armazenar e servir features para aplicações de machine learning.
 
+## O que é uma Feature Store?
+
+Uma Feature Store é um componente central da infraestrutura de Machine Learning que atua como um repositório centralizado para armazenar, gerenciar e servir features (características ou atributos) usadas em modelos de machine learning. Ela resolve vários desafios críticos no desenvolvimento e implantação de sistemas de ML:
+
+### Principais Benefícios
+
+1. **Consistência de Features**
+   - Garante que as mesmas transformações sejam aplicadas tanto no treinamento quanto na inferência
+   - Evita o "feature drift" entre ambientes de desenvolvimento e produção
+   - Mantém a consistência entre diferentes modelos que usam as mesmas features
+
+2. **Reutilização e Colaboração**
+   - Permite que equipes compartilhem e reutilizem features
+   - Reduz duplicação de esforços na engenharia de features
+   - Facilita a colaboração entre cientistas de dados
+
+3. **Governança e Rastreabilidade**
+   - Mantém histórico de versões das features
+   - Documenta transformações e linhagem de dados
+   - Facilita auditorias e compliance
+
+### Casos de Uso
+
+1. **E-commerce - Recomendação de Produtos**
+   ```python
+   # Features do usuário
+   user_features = {
+       "avg_order_value": 150.0,
+       "favorite_categories": ["electronics", "books"],
+       "last_purchase_date": "2025-02-15"
+   }
+   ```
+
+2. **Detecção de Fraude - Transações Financeiras**
+   ```python
+   # Features de transação
+   transaction_features = {
+       "amount": 1000.0,
+       "merchant_category": "online_retail",
+       "user_transaction_frequency": "high",
+       "device_risk_score": 0.2
+   }
+   ```
+
+3. **Marketing Personalizado - Segmentação de Clientes**
+   ```python
+   # Features de comportamento
+   customer_features = {
+       "engagement_score": 8.5,
+       "email_open_rate": 0.75,
+       "preferred_channel": "email",
+       "lifetime_value": 2500.0
+   }
+   ```
+
+### Como a FStore se Destaca
+
+A FStore oferece uma solução moderna e completa para estes desafios:
+
+1. **Processamento Dual-Store**
+   - Store Online (Redis) para serving em tempo real
+   - Store Offline (PostgreSQL) para treinamento em batch
+
+2. **Transformações em Tempo Real**
+   - Processamento de streams com Apache Kafka
+   - Computação distribuída com Apache Spark
+
+3. **API Flexível**
+   - Interface REST para integração com qualquer stack
+   - SDKs para Python e outras linguagens
+
+4. **Monitoramento Avançado**
+   - Métricas de qualidade de features
+   - Alertas de drift e anomalias
+   - Dashboards de performance
+
 ## Principais Funcionalidades
 
 - Pipeline de Engenharia de Features

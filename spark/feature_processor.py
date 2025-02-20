@@ -1,120 +1,165 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
+from kafka import KafkaConsumer
 import json
 import os
+import time
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class FeatureProcessor:
     def __init__(self):
+        logger.info("Iniciando Feature Processor...")
+        
+        # Inicializar Spark
         self.spark = SparkSession.builder \
             .appName("FStore Feature Processor") \
             .config("spark.sql.warehouse.dir", "/tmp/spark-warehouse") \
+            .config("spark.jars", "/opt/conda/lib/python3.11/site-packages/pyspark/jars/postgresql-42.6.0.jar") \
             .getOrCreate()
         
         # Set log level
         self.spark.sparkContext.setLogLevel("WARN")
+        logger.info("Spark inicializado com sucesso")
         
-        # Initialize Postgres connection properties
+        # Inicializar conexão com Kafka
+        self.consumer = KafkaConsumer(
+            'feature_events',
+            bootstrap_servers=os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:9092'),
+            value_deserializer=lambda x: json.loads(x.decode('utf-8')),
+            auto_offset_reset='latest',
+            group_id='feature_processor',
+            enable_auto_commit=True
+        )
+        logger.info("Kafka Consumer inicializado com sucesso")
+        
+        # Inicializar propriedades do Postgres
         self.postgres_properties = {
-            "url": os.getenv("POSTGRES_URI"),
-            "driver": "org.postgresql.Driver"
+            "user": "postgres",
+            "password": "postgres",
+            "driver": "org.postgresql.Driver",
+            "url": "jdbc:postgresql://postgres:5432/fstore"
         }
+        logger.info(f"Postgres URL: {self.postgres_properties['url']}")
+
+    def create_table_if_not_exists(self, table_name):
+        """Criar tabela se não existir"""
+        try:
+            logger.info(f"Tentando criar tabela {table_name}...")
+            
+            # Criar DataFrame vazio com schema
+            schema = StructType([
+                StructField("user_id", StringType(), True),
+                StructField("avg_session_duration", DoubleType(), True),
+                StructField("processed_at", TimestampType(), True)
+            ])
+            
+            empty_df = self.spark.createDataFrame([], schema)
+            
+            # Escrever DataFrame vazio para criar tabela
+            empty_df.write \
+                .jdbc(url=self.postgres_properties["url"],
+                     table=table_name,
+                     mode="error",
+                     properties=self.postgres_properties)
+            
+            logger.info(f"Tabela {table_name} criada com sucesso")
+        except Exception as e:
+            if "relation already exists" not in str(e):
+                logger.error(f"Erro ao criar tabela {table_name}: {str(e)}")
+                raise
+            else:
+                logger.info(f"Tabela {table_name} já existe")
 
     def process_batch_features(self, feature_group, data, transformation):
         """Process batch features using Spark"""
         try:
-            # Convert input data to Spark DataFrame
-            input_df = self.spark.createDataFrame(data)
+            logger.info(f"Processando features para grupo: {feature_group}")
+            logger.info(f"Dados recebidos: {data}")
+            logger.info(f"Transformação: {transformation}")
             
-            # Register DataFrame as temp view
+            # Converter dados para DataFrame
+            input_df = self.spark.createDataFrame(data)
             input_df.createOrReplaceTempView("input_data")
             
-            # Apply transformation
+            logger.info("DataFrame criado com sucesso")
+            logger.info(f"Schema do DataFrame: {input_df.schema}")
+            
+            # Aplicar transformação
             if transformation.startswith("SQL:"):
-                # SQL transformation
                 sql = transformation.replace("SQL:", "").strip()
+                logger.info(f"Executando SQL: {sql}")
                 result_df = self.spark.sql(sql)
             else:
-                # Python transformation
-                # Note: In production, you'd want to implement proper security measures
                 transform_func = eval(transformation)
                 result_df = transform_func(input_df)
             
-            # Write results to Postgres
+            logger.info("Transformação aplicada com sucesso")
+            logger.info(f"Schema do resultado: {result_df.schema}")
+            
+            # Adicionar timestamp
+            result_df = result_df.withColumn("processed_at", current_timestamp())
+            
+            # Criar tabela se não existir
+            table_name = f"features_{feature_group}"
+            self.create_table_if_not_exists(table_name)
+            
+            # Salvar resultados
             result_df.write \
                 .jdbc(url=self.postgres_properties["url"],
-                     table=f"features_{feature_group}",
+                     table=table_name,
                      mode="append",
                      properties=self.postgres_properties)
             
-            return {"status": "success", "rows_processed": result_df.count()}
+            logger.info(f"Features processadas com sucesso: {result_df.count()} linhas")
+            return True
             
         except Exception as e:
-            return {"status": "error", "message": str(e)}
+            logger.error(f"Erro ao processar features: {str(e)}")
+            import traceback
+            logger.error(f"Stack trace: {traceback.format_exc()}")
+            return False
 
-    def compute_feature_statistics(self, feature_group):
-        """Compute statistics for features in a feature group"""
-        try:
-            # Read feature data from Postgres
-            df = self.spark.read \
-                .jdbc(url=self.postgres_properties["url"],
-                     table=f"features_{feature_group}",
-                     properties=self.postgres_properties)
-            
-            # Compute statistics
-            stats = df.describe().collect()
-            
-            # Compute additional metrics
-            numeric_cols = [f.name for f in df.schema.fields if isinstance(f.dataType, (IntegerType, DoubleType))]
-            
-            for col in numeric_cols:
-                # Add additional statistics
-                skewness = df.select(skewness(col)).collect()[0][0]
-                kurtosis = df.select(kurtosis(col)).collect()[0][0]
-                
-                # Add to stats
-                stats.append({
-                    "metric": "skewness",
-                    col: skewness
-                })
-                stats.append({
-                    "metric": "kurtosis",
-                    col: kurtosis
-                })
-            
-            return {"status": "success", "statistics": stats}
-            
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
-
-    def detect_drift(self, feature_group, window_size="7d"):
-        """Detect feature drift over time"""
-        try:
-            # Read recent feature data
-            df = self.spark.read \
-                .jdbc(url=self.postgres_properties["url"],
-                     table=f"features_{feature_group}",
-                     properties=self.postgres_properties)
-            
-            # Add timestamp window
-            df = df.withColumn("window", window("timestamp", window_size))
-            
-            # Compute statistics per window
-            window_stats = df.groupBy("window") \
-                .agg(*[
-                    collect_list(c).alias(c)
-                    for c in df.columns if c not in ["window", "timestamp"]
-                ])
-            
-            # Compare windows to detect drift
-            # This is a simplified implementation
-            # In production, you'd want to use proper drift detection algorithms
-            
-            return {"status": "success", "drift_metrics": window_stats.collect()}
-            
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
+    def run(self):
+        """Loop principal de processamento"""
+        logger.info("Iniciando loop de processamento...")
+        
+        while True:
+            try:
+                # Consumir mensagens do Kafka
+                logger.info("Aguardando mensagens do Kafka...")
+                for message in self.consumer:
+                    try:
+                        event_data = message.value
+                        logger.info(f"Recebido evento: {event_data}")
+                        
+                        success = self.process_batch_features(
+                            event_data["feature_group"],
+                            event_data["data"],
+                            event_data["transformation"]
+                        )
+                        
+                        if success:
+                            logger.info("Evento processado com sucesso")
+                        else:
+                            logger.error("Falha ao processar evento")
+                            
+                    except Exception as e:
+                        logger.error(f"Erro ao processar mensagem: {str(e)}")
+                        import traceback
+                        logger.error(f"Stack trace: {traceback.format_exc()}")
+                        continue
+                        
+            except Exception as e:
+                logger.error(f"Erro no loop principal: {str(e)}")
+                import traceback
+                logger.error(f"Stack trace: {traceback.format_exc()}")
+                time.sleep(5)  # Esperar um pouco antes de tentar novamente
 
 if __name__ == "__main__":
     processor = FeatureProcessor()
-    # Start processing loop or API server here
+    processor.run()

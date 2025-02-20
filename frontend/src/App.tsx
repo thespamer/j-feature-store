@@ -1,8 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from 'react-query';
+
+// Theme
+import theme from './theme';
 
 // Components
 import Layout from './components/Layout';
@@ -13,19 +16,6 @@ import Monitoring from './pages/Monitoring';
 
 // Create a client for React Query
 const queryClient = new QueryClient();
-
-// Create theme
-const theme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#90caf9',
-    },
-    secondary: {
-      main: '#f48fb1',
-    },
-  },
-});
 
 function App() {
   return (

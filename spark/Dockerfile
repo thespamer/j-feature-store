@@ -1,6 +1,11 @@
-FROM apache/spark-py:3.4.0
+FROM jupyter/pyspark-notebook:latest
 
 WORKDIR /app
+
+USER root
+
+# Instalar driver JDBC do PostgreSQL
+RUN wget https://jdbc.postgresql.org/download/postgresql-42.6.0.jar -P /opt/conda/lib/python3.11/site-packages/pyspark/jars/
 
 # Install Python dependencies
 COPY requirements.txt .
