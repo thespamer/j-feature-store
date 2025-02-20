@@ -1,0 +1,47 @@
+# Configuração dos Data Sources do Feature Store
+
+# PostgreSQL - Fonte de dados relacional
+postgres:
+  host: localhost
+  port: 5432
+  database: fstore
+  user: postgres
+  password: postgres
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+
+# Apache Kafka - Streaming de dados
+kafka:
+  bootstrap_servers: localhost:9092
+  group_id: fstore_group
+  auto_offset_reset: latest
+  security_protocol: PLAINTEXT
+  topics:
+    user_events: customer_events
+    transaction_events: transaction_events
+    product_events: product_events
+
+# Amazon S3 - Data Lake
+s3:
+  region_name: us-east-1
+  bucket: my-feature-store
+  prefix: features/
+  file_format: parquet
+  batch_settings:
+    max_workers: 4
+    chunk_size: 1000
+    retry_count: 3
+
+# Configurações de Cache
+cache:
+  type: redis
+  host: localhost
+  port: 6379
+  ttl: 3600  # 1 hora em segundos
+
+# Configurações de Monitoramento
+monitoring:
+  enabled: true
+  metrics_interval: 60  # segundos
+  log_level: INFO
