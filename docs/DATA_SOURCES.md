@@ -12,6 +12,7 @@ Este guia explica como conectar diferentes tipos de fontes de dados ao FStore pa
 - [Streaming](#streaming)
   - [Apache Kafka](#apache-kafka)
   - [Apache Pulsar](#apache-pulsar)
+- [API REST](#api-rest)
 - [Exemplos Completos](#exemplos-completos)
 
 ## Bancos de Dados Relacionais
@@ -257,6 +258,133 @@ pulsar_config = {
 
 pulsar_connector = PulsarConnector(pulsar_config)
 ```
+
+## API REST
+
+### Envio de Eventos via API
+
+Você pode enviar valores de features diretamente via API REST, ideal para:
+- Aplicações que geram features em tempo real
+- Integração com sistemas externos
+- Testes e simulações
+- POCs e protótipos rápidos
+
+#### Exemplo Básico em Python
+
+```python
+import requests
+from datetime import datetime
+
+def send_feature_value(feature_id: str, entity_id: str, value: float):
+    """
+    Envia um valor de feature via API
+    """
+    url = "http://localhost:8000/api/v1/features/{}/values".format(feature_id)
+    
+    payload = {
+        "entity_id": entity_id,
+        "value": value,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    response = requests.post(url, json=payload)
+    return response.status_code == 200
+
+# Exemplo de uso
+success = send_feature_value(
+    feature_id="customer_purchase_amount",
+    entity_id="customer_123",
+    value=99.99
+)
+print(f"Envio {'bem-sucedido' if success else 'falhou'}")
+```
+
+#### Simulação de Múltiplos Eventos
+
+Para casos onde você precisa simular ou enviar múltiplos eventos:
+
+```python
+import random
+import time
+
+def simulate_events():
+    """
+    Simula eventos de features para demonstração
+    """
+    feature_configs = [
+        {
+            "feature_id": "customer_purchase_amount",
+            "entity_ids": ["customer_1", "customer_2"],
+            "min_value": 10.0,
+            "max_value": 1000.0
+        },
+        {
+            "feature_id": "product_stock_level",
+            "entity_ids": ["product_1", "product_2"],
+            "min_value": 0.0,
+            "max_value": 100.0
+        }
+    ]
+    
+    while True:
+        for config in feature_configs:
+            for entity_id in config["entity_ids"]:
+                value = random.uniform(config["min_value"], config["max_value"])
+                send_feature_value(config["feature_id"], entity_id, value)
+        time.sleep(5)  # Espera 5 segundos entre lotes
+```
+
+#### Requisitos da API
+
+1. **Endpoint**: 
+```http
+POST /api/v1/features/{feature_id}/values
+```
+
+2. **Payload**:
+```json
+{
+    "entity_id": "string",    // ID da entidade (ex: customer_123)
+    "value": 0.0,            // Valor numérico da feature
+    "timestamp": "string"     // ISO format (ex: 2024-02-20T22:39:38Z)
+}
+```
+
+3. **Respostas**:
+- 200: Sucesso
+- 404: Feature não encontrada
+- 400: Payload inválido
+
+#### Melhores Práticas
+
+1. **Tratamento de Erros**:
+```python
+try:
+    success = send_feature_value(feature_id, entity_id, value)
+except requests.exceptions.RequestException as e:
+    print(f"Erro na requisição: {str(e)}")
+```
+
+2. **Envio em Lote**:
+```python
+def send_batch_values(features: List[Dict]):
+    url = "http://localhost:8000/api/v1/features/batch"
+    response = requests.post(url, json=features)
+    return response.status_code == 200
+```
+
+3. **Retry em Falhas**:
+```python
+from tenacity import retry, stop_after_attempt
+
+@retry(stop=stop_after_attempt(3))
+def send_feature_with_retry(feature_id, entity_id, value):
+    return send_feature_value(feature_id, entity_id, value)
+```
+
+#### Exemplo Completo
+
+Um exemplo completo de implementação está disponível em `examples/send_feature_events.py`.
 
 ## Exemplos Completos
 
