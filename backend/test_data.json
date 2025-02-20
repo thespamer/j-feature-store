@@ -1,0 +1,8 @@
+{
+    "name": "user_features",
+    "description": "User-related features",
+    "entity_type": "user",
+    "features": [],
+    "tags": ["user", "demographic"],
+    "frequency": "daily"
+}

@@ -1,0 +1,13 @@
+{
+    "name": "user_age",
+    "description": "User's age in years",
+    "data_type": "float",
+    "entity_id": "user123",
+    "feature_group_id": "67b76e8751ae09f4b99e0f04",
+    "tags": ["demographic", "age"],
+    "metadata": {
+        "min_value": 0,
+        "max_value": 120,
+        "unit": "years"
+    }
+}

@@ -1,22 +1,13 @@
 version: '3.8'
 
 services:
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000
-    depends_on:
-      - backend
-
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/fstore
-      - REDIS_URI=redis://redis:6380/0
+      - REDIS_URI=redis://redis:6379/0
       - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/fstore
     depends_on:
       - mongodb
@@ -33,7 +24,7 @@ services:
   redis:
     image: redis:latest
     ports:
-      - "6380:6379"
+      - "6379:6379"
     volumes:
       - redis_data:/data
 
@@ -47,7 +38,6 @@ services:
       - POSTGRES_PASSWORD=postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/migrations:/app/migrations
 
 volumes:
   mongodb_data:

@@ -1,7 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import features, registry, monitoring
-from .core.config import settings
+from app.routers import monitoring, features
 
 app = FastAPI(title="FStore API")
 
@@ -15,9 +14,8 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(features.router, prefix="/api/features", tags=["features"])
-app.include_router(registry.router, prefix="/api/registry", tags=["registry"])
-app.include_router(monitoring.router, prefix="/api/monitoring", tags=["monitoring"])
+app.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
+app.include_router(features.router, prefix="/api/v1", tags=["features"])
 
 @app.get("/")
 async def root():
