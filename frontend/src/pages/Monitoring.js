@@ -32,14 +32,15 @@ const Monitoring = () => {
     try {
       const response = await fetch('http://localhost:8000/api/v1/monitoring/metrics');
       const data = await response.json();
-      // Map feature_types to featureStats
+      // Map backend data to frontend structure
       const mappedData = {
         ...data,
         featureStats: data.feature_types || {
           numerical: 0,
           categorical: 0,
           temporal: 0
-        }
+        },
+        recentActivity: data.recent_activities || []
       };
       setMetrics(mappedData);
     } catch (error) {
