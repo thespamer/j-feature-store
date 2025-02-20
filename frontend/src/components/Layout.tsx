@@ -47,7 +47,7 @@ export default function Layout({ children }: LayoutProps) {
     <Box
       sx={{
         height: '100%',
-        background: 'linear-gradient(180deg, #0a0b1e 0%, #13142b 100%)',
+        background: 'linear-gradient(180deg, #424242 0%, #4f4f4f 100%)',
       }}
     >
       <Toolbar
@@ -166,7 +166,7 @@ export default function Layout({ children }: LayoutProps) {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
-              background: 'linear-gradient(180deg, #0a0b1e 0%, #13142b 100%)',
+              background: 'linear-gradient(180deg, #424242 0%, #4f4f4f 100%)',
               borderRight: '1px solid rgba(0, 242, 255, 0.1)',
             },
           }}
@@ -180,7 +180,7 @@ export default function Layout({ children }: LayoutProps) {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
-              background: 'linear-gradient(180deg, #0a0b1e 0%, #13142b 100%)',
+              background: 'linear-gradient(180deg, #424242 0%, #4f4f4f 100%)',
               borderRight: '1px solid rgba(0, 242, 255, 0.1)',
             },
           }}

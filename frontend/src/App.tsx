@@ -19,10 +19,10 @@ const queryClient = new QueryClient();
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <Router>
       <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Router>
+        <QueryClientProvider client={queryClient}>
+          <CssBaseline />
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -31,9 +31,9 @@ function App() {
               <Route path="/monitoring" element={<Monitoring />} />
             </Routes>
           </Layout>
-        </Router>
+        </QueryClientProvider>
       </ThemeProvider>
-    </QueryClientProvider>
+    </Router>
   );
 }
 
