@@ -8,15 +8,11 @@ import {
   CardContent,
   Stack,
   LinearProgress,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from '@mui/material';
-import {
-  Timeline,
-  TimelineItem,
-  TimelineSeparator,
-  TimelineConnector,
-  TimelineContent,
-  TimelineDot,
-} from '@mui/lab';
 
 const Monitoring = () => {
   const [metrics, setMetrics] = useState({
@@ -36,7 +32,16 @@ const Monitoring = () => {
     try {
       const response = await fetch('http://localhost:8000/api/v1/monitoring/metrics');
       const data = await response.json();
-      setMetrics(data);
+      // Map feature_types to featureStats
+      const mappedData = {
+        ...data,
+        featureStats: data.feature_types || {
+          numerical: 0,
+          categorical: 0,
+          temporal: 0
+        }
+      };
+      setMetrics(mappedData);
     } catch (error) {
       console.error('Error fetching metrics:', error);
     }
@@ -212,7 +217,7 @@ const Monitoring = () => {
           </Grid>
         </Grid>
 
-        {/* Timeline de Atividades */}
+        {/* Lista de Atividades Recentes */}
         <Grid item xs={12} md={4}>
           <Paper 
             sx={{ 
@@ -228,28 +233,34 @@ const Monitoring = () => {
             <Typography variant="h6" gutterBottom>
               Atividade Recente
             </Typography>
-            <Timeline>
+            <List>
               {metrics.recentActivity.map((activity, index) => (
-                <TimelineItem key={index}>
-                  <TimelineSeparator>
-                    <TimelineDot 
-                      sx={{
-                        background: 'linear-gradient(45deg, #00f2ff 30%, #ff00f2 90%)',
-                      }}
+                <React.Fragment key={index}>
+                  <ListItem>
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2" color="primary">
+                          {activity.action}
+                        </Typography>
+                      }
+                      secondary={
+                        <Typography variant="caption" color="textSecondary">
+                          {new Date(activity.timestamp).toLocaleString()}
+                        </Typography>
+                      }
                     />
-                    {index < metrics.recentActivity.length - 1 && <TimelineConnector />}
-                  </TimelineSeparator>
-                  <TimelineContent>
-                    <Typography variant="body2" color="primary">
-                      {activity.action}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      {new Date(activity.timestamp).toLocaleString()}
-                    </Typography>
-                  </TimelineContent>
-                </TimelineItem>
+                  </ListItem>
+                  {index < metrics.recentActivity.length - 1 && (
+                    <Divider 
+                      sx={{ 
+                        background: 'linear-gradient(45deg, #00f2ff 30%, #ff00f2 90%)',
+                        opacity: 0.2 
+                      }} 
+                    />
+                  )}
+                </React.Fragment>
               ))}
-            </Timeline>
+            </List>
           </Paper>
         </Grid>
       </Grid>

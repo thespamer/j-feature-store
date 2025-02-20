@@ -14,6 +14,7 @@ import {
   CardContent,
   Grid,
   Chip,
+  MenuItem,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 
@@ -23,8 +24,10 @@ const Features = () => {
   const [newFeature, setNewFeature] = useState({
     name: '',
     description: '',
-    type: '',
-    value: ''
+    data_type: 'float',
+    entity_id: '',
+    feature_group_id: '',
+    tags: []
   });
 
   const fetchFeatures = async () => {
@@ -64,15 +67,15 @@ const Features = () => {
 
       if (response.ok) {
         handleClose();
-        // Limpar o formulário
+        fetchFeatures();
         setNewFeature({
           name: '',
           description: '',
-          type: '',
-          value: ''
+          data_type: 'float',
+          entity_id: '',
+          feature_group_id: '',
+          tags: []
         });
-        // Atualizar a lista de features
-        fetchFeatures();
       }
     } catch (error) {
       console.error('Error creating feature:', error);
@@ -82,146 +85,151 @@ const Features = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4">
           Features
         </Typography>
         <Button
           variant="contained"
-          color="primary"
           startIcon={<AddIcon />}
           onClick={handleOpen}
           sx={{
             background: 'linear-gradient(45deg, #00f2ff 30%, #ff00f2 90%)',
             color: 'white',
             '&:hover': {
-              background: 'linear-gradient(45deg, #00f2ff 10%, #ff00f2 70%)',
-              boxShadow: '0 0 20px rgba(0, 242, 255, 0.5)',
+              background: 'linear-gradient(45deg, #00f2ff 20%, #ff00f2 100%)',
             },
           }}
         >
-          Create Feature
+          Nova Feature
         </Button>
       </Stack>
 
+      <Grid container spacing={3}>
+        {features.map((feature) => (
+          <Grid item xs={12} sm={6} md={4} key={feature.id}>
+            <Card 
+              sx={{ 
+                height: '100%',
+                background: 'linear-gradient(45deg, rgba(0, 242, 255, 0.05), rgba(255, 0, 242, 0.05))',
+                border: '1px solid rgba(0, 242, 255, 0.1)',
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  border: '1px solid rgba(0, 242, 255, 0.2)',
+                  boxShadow: '0 0 20px rgba(0, 242, 255, 0.1)',
+                  transform: 'translateY(-4px)',
+                },
+              }}
+            >
+              <CardContent>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  {feature.name}
+                </Typography>
+                <Typography variant="body2" color="textSecondary" paragraph>
+                  {feature.description}
+                </Typography>
+                <Stack direction="row" spacing={1} mb={2}>
+                  <Chip 
+                    label={`Tipo: ${feature.data_type}`}
+                    size="small"
+                    sx={{
+                      background: 'linear-gradient(45deg, #00f2ff 30%, #ff00f2 90%)',
+                      color: 'white',
+                    }}
+                  />
+                  <Chip 
+                    label={`Entidade: ${feature.entity_id}`}
+                    size="small"
+                    sx={{
+                      background: 'linear-gradient(45deg, #ff00f2 30%, #00f2ff 90%)',
+                      color: 'white',
+                    }}
+                  />
+                </Stack>
+                <Box>
+                  {feature.tags.map((tag, index) => (
+                    <Chip
+                      key={index}
+                      label={tag}
+                      size="small"
+                      sx={{
+                        m: 0.5,
+                        background: 'rgba(0, 242, 255, 0.1)',
+                        border: '1px solid rgba(0, 242, 255, 0.2)',
+                        color: 'white',
+                      }}
+                    />
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
       <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>Create New Feature</DialogTitle>
+        <DialogTitle>Nova Feature</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 2 }}>
             <TextField
               name="name"
-              label="Name"
+              label="Nome"
+              fullWidth
               value={newFeature.name}
               onChange={handleChange}
-              fullWidth
             />
             <TextField
               name="description"
-              label="Description"
-              value={newFeature.description}
-              onChange={handleChange}
+              label="Descrição"
               fullWidth
               multiline
               rows={3}
+              value={newFeature.description}
+              onChange={handleChange}
             />
             <TextField
-              name="type"
-              label="Type"
-              value={newFeature.type}
-              onChange={handleChange}
+              name="data_type"
+              label="Tipo de Dado"
+              select
               fullWidth
+              value={newFeature.data_type}
+              onChange={handleChange}
+            >
+              <MenuItem value="float">Float</MenuItem>
+              <MenuItem value="int">Integer</MenuItem>
+              <MenuItem value="string">String</MenuItem>
+            </TextField>
+            <TextField
+              name="entity_id"
+              label="ID da Entidade"
+              fullWidth
+              value={newFeature.entity_id}
+              onChange={handleChange}
             />
             <TextField
-              name="value"
-              label="Value"
-              value={newFeature.value}
-              onChange={handleChange}
+              name="feature_group_id"
+              label="ID do Grupo"
               fullWidth
+              value={newFeature.feature_group_id}
+              onChange={handleChange}
             />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="primary">
-            Cancel
-          </Button>
+          <Button onClick={handleClose}>Cancelar</Button>
           <Button 
-            onClick={handleSubmit} 
-            variant="contained" 
-            color="primary"
+            onClick={handleSubmit}
             sx={{
               background: 'linear-gradient(45deg, #00f2ff 30%, #ff00f2 90%)',
+              color: 'white',
               '&:hover': {
-                background: 'linear-gradient(45deg, #00f2ff 10%, #ff00f2 70%)',
-                boxShadow: '0 0 20px rgba(0, 242, 255, 0.5)',
+                background: 'linear-gradient(45deg, #00f2ff 20%, #ff00f2 100%)',
               },
             }}
           >
-            Create
+            Criar
           </Button>
         </DialogActions>
       </Dialog>
-
-      <Grid container spacing={3}>
-        {features.length > 0 ? (
-          features.map((feature) => (
-            <Grid item xs={12} sm={6} md={4} key={feature.id}>
-              <Card 
-                sx={{ 
-                  height: '100%',
-                  background: 'linear-gradient(45deg, rgba(0, 242, 255, 0.05), rgba(255, 0, 242, 0.05))',
-                  border: '1px solid rgba(0, 242, 255, 0.1)',
-                  borderRadius: '8px',
-                  transition: 'all 0.3s ease-in-out',
-                  '&:hover': {
-                    border: '1px solid rgba(0, 242, 255, 0.2)',
-                    boxShadow: '0 0 20px rgba(0, 242, 255, 0.1)',
-                    transform: 'translateY(-2px)',
-                  },
-                }}
-              >
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    {feature.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    {feature.description}
-                  </Typography>
-                  <Stack direction="row" spacing={1} mb={2}>
-                    <Chip 
-                      label={feature.type}
-                      sx={{
-                        background: 'linear-gradient(45deg, #00f2ff 30%, #ff00f2 90%)',
-                        color: 'white',
-                      }}
-                    />
-                  </Stack>
-                  <Typography variant="body2" color="text.primary">
-                    Value: {feature.value}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))
-        ) : (
-          <Grid item xs={12}>
-            <Paper 
-              sx={{ 
-                p: 2,
-                background: 'linear-gradient(45deg, rgba(0, 242, 255, 0.05), rgba(255, 0, 242, 0.05))',
-                border: '1px solid rgba(0, 242, 255, 0.1)',
-                borderRadius: '8px',
-                '&:hover': {
-                  border: '1px solid rgba(0, 242, 255, 0.2)',
-                  boxShadow: '0 0 20px rgba(0, 242, 255, 0.1)',
-                },
-              }}
-            >
-              <Typography variant="body1" color="text.secondary">
-                No features yet. Click the button above to create one.
-              </Typography>
-            </Paper>
-          </Grid>
-        )}
-      </Grid>
     </Box>
   );
 };

@@ -4,13 +4,21 @@ Este guia explica como conectar diferentes tipos de fontes de dados ao FStore pa
 
 ## Sumário
 - [Bancos de Dados Relacionais](#bancos-de-dados-relacionais)
+  - [PostgreSQL](#postgresql)
+  - [MySQL](#mysql)
 - [Data Lakes](#data-lakes)
+  - [Amazon S3](#amazon-s3)
+  - [Azure Data Lake](#azure-data-lake)
 - [Streaming](#streaming)
-- [Outras Fontes](#outras-fontes)
+  - [Apache Kafka](#apache-kafka)
+  - [Apache Pulsar](#apache-pulsar)
+- [Exemplos Completos](#exemplos-completos)
 
 ## Bancos de Dados Relacionais
 
 ### PostgreSQL
+
+O conector PostgreSQL permite extrair features de tabelas PostgreSQL usando consultas SQL.
 
 ```python
 from fstore.connectors import PostgreSQLConnector
@@ -43,7 +51,16 @@ feature_def = {
 pg_connector.register_feature(feature_def)
 ```
 
+Recursos suportados:
+- Consultas SQL complexas
+- Agregações temporais
+- Joins entre tabelas
+- Atualização incremental
+- Cache de resultados
+
 ### MySQL
+
+Similar ao PostgreSQL, o conector MySQL permite extrair features de bancos MySQL.
 
 ```python
 from fstore.connectors import MySQLConnector
@@ -62,6 +79,8 @@ mysql_connector = MySQLConnector(mysql_config)
 ## Data Lakes
 
 ### Amazon S3
+
+O conector S3 permite processar arquivos em diversos formatos (Parquet, CSV, JSON) armazenados no Amazon S3.
 
 ```python
 from fstore.connectors import S3Connector
@@ -87,7 +106,15 @@ feature_def = {
 s3_connector.register_feature(feature_def)
 ```
 
+Formatos suportados:
+- Apache Parquet
+- CSV
+- JSON
+- Apache ORC
+
 ### Azure Data Lake
+
+Para dados armazenados no Azure Data Lake Storage.
 
 ```python
 from fstore.connectors import AzureDataLakeConnector
@@ -105,6 +132,8 @@ adls_connector = AzureDataLakeConnector(adls_config)
 
 ### Apache Kafka
 
+O conector Kafka permite processar features em tempo real a partir de tópicos Kafka.
+
 ```python
 from fstore.connectors import KafkaConnector
 
@@ -114,133 +143,123 @@ kafka_config = {
     "auto_offset_reset": "latest"
 }
 
-# Inicializar conector Kafka
 kafka_connector = KafkaConnector(kafka_config)
 
-# Registrar feature de streaming
-streaming_feature = {
-    "name": "user_click_stream",
-    "topic": "user_clicks",
-    "window_size": "5m",
-    "aggregations": [
-        {"type": "count", "field": "click_id"},
-        {"type": "sum", "field": "duration"}
-    ]
-}
-
-kafka_connector.register_streaming_feature(streaming_feature)
-```
-
-### Apache Flink
-
-```python
-from fstore.connectors import FlinkConnector
-
-flink_config = {
-    "job_manager_url": "localhost:8081",
-    "parallelism": 4
-}
-
-flink_connector = FlinkConnector(flink_config)
-```
-
-## Outras Fontes
-
-### REST APIs
-
-```python
-from fstore.connectors import RESTConnector
-
-api_config = {
-    "base_url": "https://api.example.com/v1",
-    "auth_token": "YOUR_API_TOKEN",
-    "rate_limit": 100  # requests per minute
-}
-
-# Inicializar conector REST
-rest_connector = RESTConnector(api_config)
-
-# Registrar feature usando API
+# Configurar processamento de streaming
 feature_def = {
-    "name": "weather_features",
-    "endpoint": "/weather",
-    "method": "GET",
-    "params": {
-        "location": "city_id",
-        "metrics": ["temperature", "humidity", "pressure"]
-    },
-    "update_frequency": "1h"
+    "name": "user_current_session",
+    "topic": "user_events",
+    "value_field": "session_data",
+    "window_size": "5m"
 }
 
-rest_connector.register_feature(feature_def)
+kafka_connector.register_streaming_feature(feature_def)
 ```
 
-### MongoDB
+Recursos:
+- Processamento em tempo real
+- Janelas deslizantes
+- Agregações em tempo real
+- Tratamento de atrasos
+- Checkpointing
+
+### Apache Pulsar
+
+Similar ao Kafka, mas usando Apache Pulsar como fonte de streaming.
 
 ```python
-from fstore.connectors import MongoDBConnector
+from fstore.connectors import PulsarConnector
 
-mongodb_config = {
-    "host": "localhost",
-    "port": 27017,
-    "database": "features_db",
-    "collection": "features"
+pulsar_config = {
+    "service_url": "pulsar://localhost:6650",
+    "subscription_name": "feature_store_sub"
 }
 
-mongodb_connector = MongoDBConnector(mongodb_config)
+pulsar_connector = PulsarConnector(pulsar_config)
 ```
-
-## Boas Práticas
-
-1. **Segurança**
-   - Nunca armazene credenciais no código
-   - Use variáveis de ambiente ou gerenciadores de segredos
-   - Implemente rotação de chaves quando possível
-
-2. **Performance**
-   - Configure índices apropriados
-   - Use particionamento quando necessário
-   - Implemente cache para queries frequentes
-
-3. **Monitoramento**
-   - Configure alertas para falhas de conexão
-   - Monitore latência de queries
-   - Acompanhe uso de recursos
-
-4. **Manutenção**
-   - Mantenha documentação atualizada
-   - Faça backup regular dos dados
-   - Implemente versionamento de schemas
-
-## Troubleshooting
-
-### Problemas Comuns
-
-1. **Conexão Recusada**
-   - Verifique firewall
-   - Confirme credenciais
-   - Verifique status do servidor
-
-2. **Performance Baixa**
-   - Analise plano de execução
-   - Verifique índices
-   - Otimize queries
-
-3. **Dados Inconsistentes**
-   - Verifique transformações
-   - Confirme schema
-   - Valide pipeline de dados
 
 ## Exemplos Completos
 
 Veja exemplos completos de implementação no diretório `examples/` do repositório:
-- `examples/postgres_features.py`
-- `examples/kafka_streaming.py`
-- `examples/s3_batch_processing.py`
+
+- `examples/postgres_features.py`: Exemplo de extração de features do PostgreSQL
+- `examples/kafka_streaming.py`: Processamento de features em tempo real com Kafka
+- `examples/s3_batch_processing.py`: Processamento em batch de dados do S3
+
+### Exemplo PostgreSQL
+```python
+# Importar do examples/postgres_features.py
+from fstore import FeatureStore
+from fstore.connectors import PostgresConnector
+
+store = FeatureStore()
+connector = PostgresConnector({
+    "host": "localhost",
+    "port": 5432,
+    "database": "mydatabase",
+    "user": "myuser",
+    "password": "mypassword"
+})
+
+# Criar e atualizar feature
+feature = store.create_feature(
+    name="customer_total_purchases",
+    query="SELECT customer_id, SUM(amount) FROM purchases GROUP BY customer_id"
+)
+store.update_feature_values(feature.name, connector)
+```
+
+### Exemplo Kafka Streaming
+```python
+# Importar do examples/kafka_streaming.py
+from fstore import FeatureStore
+from fstore.connectors import KafkaConnector
+
+store = FeatureStore()
+connector = KafkaConnector({
+    "bootstrap_servers": "localhost:9092",
+    "group_id": "feature_store_group"
+})
+
+# Configurar streaming
+feature = store.create_feature(
+    name="customer_last_action",
+    stream_config={
+        "topic": "customer_events",
+        "value_field": "action"
+    }
+)
+store.start_streaming_feature(feature.name, connector)
+```
+
+### Exemplo S3 Batch
+```python
+# Importar do examples/s3_batch_processing.py
+from fstore import FeatureStore
+from fstore.connectors import S3Connector
+
+store = FeatureStore()
+connector = S3Connector({
+    "bucket": "my-feature-store",
+    "aws_access_key_id": "YOUR_KEY",
+    "aws_secret_access_key": "YOUR_SECRET"
+})
+
+# Configurar processamento em batch
+feature = store.create_feature(
+    name="customer_lifetime_value",
+    batch_config={
+        "path": "customer_transactions/*.parquet",
+        "schedule": "0 0 * * *"  # Diariamente
+    }
+)
+store.run_batch_processing(feature.name)
+```
 
 ## Suporte
 
 Para mais informações ou suporte:
-- Documentação: `docs/`
-- Issues: GitHub Issues
-- Comunidade: Slack Channel
+1. Consulte a documentação completa em `/docs`
+2. Veja os exemplos em `/examples`
+3. Abra uma issue no GitHub
+4. Entre em contato com a equipe de suporte
