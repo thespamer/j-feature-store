@@ -14,6 +14,7 @@ Este guia explica como conectar diferentes tipos de fontes de dados ao FStore pa
   - [Apache Pulsar](#apache-pulsar)
 - [API REST](#api-rest)
 - [Exemplos Completos](#exemplos-completos)
+- [ML Pipeline Integration](#ml-pipeline-integration)
 
 ## Bancos de Dados Relacionais
 
@@ -462,6 +463,93 @@ feature = store.create_feature(
     }
 )
 store.run_batch_processing(feature.name)
+```
+
+## ML Pipeline Integration
+
+### Integração com Notebooks
+
+```python
+# Jupyter/Colab Integration
+from fstore import FeatureStore
+import pandas as pd
+
+# Initialize
+store = FeatureStore()
+
+# Get features for model training
+features_df = store.get_training_features(
+    feature_list=[
+        "customer_purchase_frequency",
+        "customer_lifetime_value",
+        "product_view_count"
+    ],
+    start_date="2024-01-01",
+    end_date="2024-02-01"
+)
+
+# Split features
+X_train = features_df.drop('target', axis=1)
+y_train = features_df['target']
+```
+
+### Feature Validation
+
+```python
+# Define feature expectations
+validation_config = {
+    "customer_lifetime_value": {
+        "min_value": 0,
+        "max_value": 1000000,
+        "null_percentage_threshold": 0.01
+    },
+    "purchase_frequency": {
+        "min_value": 0,
+        "max_value": 100,
+        "distribution_type": "poisson"
+    }
+}
+
+# Validate features
+validation_report = store.validate_features(
+    feature_list=["customer_lifetime_value", "purchase_frequency"],
+    config=validation_config
+)
+```
+
+### Feature Selection e Importância
+
+```python
+# Get feature importance
+from fstore.analysis import FeatureAnalyzer
+
+analyzer = FeatureAnalyzer()
+importance_report = analyzer.analyze_importance(
+    feature_list=["customer_*"],  # wildcard para todas features de customer
+    target="conversion",
+    method="mutual_information"  # ou 'shap', 'permutation'
+)
+```
+
+### Monitoramento de Produção
+
+```python
+# Monitor feature drift
+from fstore.monitoring import DriftDetector
+
+detector = DriftDetector()
+drift_report = detector.check_drift(
+    feature_list=["customer_lifetime_value"],
+    reference_data="2024-01",  # período base
+    current_data="2024-02"     # período atual
+)
+
+# Configurar alertas
+detector.set_alerts(
+    drift_threshold=0.1,  # KL divergence threshold
+    missing_threshold=0.05,  # máximo de valores ausentes
+    notification_channel="slack"  # ou 'email', 'webhook'
+)
 ```
 
 ## Suporte
