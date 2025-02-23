@@ -1,26 +1,22 @@
-from pydantic import BaseSettings
-from typing import List, Optional
+from pydantic import BaseModel
+from typing import Optional
 
-class Settings(BaseSettings):
-    PROJECT_NAME: str = "FStore"
-    API_V1_STR: str = "/api"
+class Settings(BaseModel):
+    PROJECT_NAME: str = "Feature Store API"
+    VERSION: str = "0.1.0"
+    API_V1_STR: str = "/api/v1"
     
-    # Database URIs
-    MONGODB_URI: str = "mongodb://mongodb:27017/fstore"
-    REDIS_URI: str = "redis://redis:6380/0"
-    POSTGRES_URI: str = "postgresql://postgres:postgres@postgres:5432/fstore"
+    MONGODB_URL: str = "mongodb://mongodb:27017"
+    MONGODB_DB: str = "fstore"
     
-    # Kafka (optional)
-    KAFKA_BOOTSTRAP_SERVERS: Optional[str] = None
+    REDIS_URL: str = "redis://redis:6379/0"
     
-    # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
+    KAFKA_TOPIC_PREFIX: str = "feature_store"
     
-    # Security
-    SECRET_KEY: str = "your-secret-key"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
-
-    class Config:
-        case_sensitive = True
+    POSTGRES_SERVER: str = "postgres"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_DB: str = "fstore"
 
 settings = Settings()

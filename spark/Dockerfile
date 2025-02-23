@@ -4,14 +4,14 @@ WORKDIR /app
 
 USER root
 
-# Instalar driver JDBC do PostgreSQL
-RUN wget https://jdbc.postgresql.org/download/postgresql-42.6.0.jar -P /opt/conda/lib/python3.11/site-packages/pyspark/jars/
+# Download PostgreSQL JDBC driver
+RUN wget https://jdbc.postgresql.org/download/postgresql-42.2.18.jar -O /app/postgresql-42.2.18.jar
 
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy Spark application files
+# Copy application files
 COPY feature_processor.py .
 
 # Set environment variables

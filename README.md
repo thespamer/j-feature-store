@@ -94,13 +94,91 @@ A FStore oferece uma solução moderna e completa para estes desafios:
 
 - **Frontend**: React + TypeScript + Material-UI
 - **Backend**: FastAPI (Python)
-- **Processamento de Features**: Apache Spark
+- **Processamento**:
+  - Apache Spark para processamento distribuído
+  - Apache Kafka para streaming de eventos
 - **Armazenamento**:
-  - Store Online: Redis
-  - Store Offline: PostgreSQL
-  - Store de Metadados: MongoDB
-- **Fila de Mensagens**: Apache Kafka
-- **Containerização**: Docker + Docker Compose
+  - Store Online: Redis (cache e serving)
+  - Store Offline: PostgreSQL (features processadas)
+  - Store de Metadados: MongoDB (configurações)
+
+## Componentes Principais
+
+1. **Feature Processor**
+   - Processamento distribuído com Spark
+   - Consumo de eventos do Kafka
+   - Transformações SQL
+   - Persistência no PostgreSQL
+
+2. **Feature Registry**
+   - Gerenciamento de metadados
+   - Versionamento de features
+   - Configurações de transformação
+   - Armazenamento no MongoDB
+
+3. **Feature Serving**
+   - Cache em Redis
+   - API REST com FastAPI
+   - Serving em tempo real
+   - Monitoramento e logs
+
+## Exemplo de Uso
+
+```python
+# Enviar evento para processamento
+from kafka import KafkaProducer
+import json
+
+producer = KafkaProducer(bootstrap_servers='localhost:9092')
+
+event = {
+    "feature_group": "user_metrics",
+    "data": [
+        {
+            "user_id": "user_123",
+            "session_duration": 300,
+            "page_views": 10
+        }
+    ],
+    "transformation": """
+        SELECT
+            user_id,
+            AVG(session_duration) as avg_session_duration,
+            SUM(page_views) as total_page_views
+        FROM input_data
+        GROUP BY user_id
+    """
+}
+
+producer.send('feature-events', json.dumps(event).encode())
+```
+
+## Configuração
+
+1. **Dependências**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Variáveis de Ambiente**
+   ```bash
+   # Kafka
+   KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+   
+   # PostgreSQL
+   POSTGRES_URI=postgresql://postgres:postgres@localhost:5432/fstore
+   
+   # Redis
+   REDIS_URI=redis://localhost:6379
+   
+   # MongoDB
+   MONGODB_URI=mongodb://localhost:27017/fstore
+   ```
+
+3. **Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
 
 ## Início Rápido
 
@@ -330,6 +408,60 @@ npm start
    docker-compose up -d
    ```
 
-## Licença
+## Testes
 
-Licença MIT
+### Executando os Testes
+
+Os testes são executados em um container Docker isolado:
+
+```bash
+# Executar todos os testes
+docker-compose run --rm backend-test
+
+# Executar testes específicos
+docker-compose run --rm backend-test pytest tests/test_features.py -v
+
+# Executar testes com cobertura
+docker-compose run --rm backend-test pytest --cov=app --cov-report=term-missing
+```
+
+### Desenvolvimento Local
+
+1. Inicie os serviços de infraestrutura:
+```bash
+docker-compose up -d mongodb redis kafka postgres
+```
+
+2. Execute o backend em modo de desenvolvimento:
+```bash
+cd backend
+pip install -r requirements.txt
+pip install -r requirements.test.txt
+uvicorn app.main:app --reload
+```
+
+3. Execute o frontend em modo de desenvolvimento:
+```bash
+cd frontend
+npm install
+npm start
+```
+
+## API Documentation
+
+A documentação da API está disponível em:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+## Contribuindo
+
+1. Fork o projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/amazing-feature`)
+3. Adicione testes para sua feature
+4. Commit suas mudanças (`git commit -m 'Add amazing feature'`)
+5. Push para a branch (`git push origin feature/amazing-feature`)
+6. Abra um Pull Request
+
+## License
+
+MIT

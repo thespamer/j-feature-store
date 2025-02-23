@@ -1,29 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Box, 
-  Button, 
-  Card, 
-  CardContent, 
   Typography, 
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions
+  Card, 
+  CardContent,
+  Grid,
+  Chip,
+  CircularProgress
 } from '@mui/material';
 
 const API_URL = 'http://localhost:8000/api/v1';
 
 const FeatureGroups = () => {
   const [groups, setGroups] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [newGroup, setNewGroup] = useState({
-    name: '',
-    description: '',
-    entity_type: '',
-    tags: [],
-    frequency: 'daily'
-  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchGroups();
@@ -31,130 +22,80 @@ const FeatureGroups = () => {
 
   const fetchGroups = async () => {
     try {
-      const response = await fetch(`${API_URL}/feature-groups`);
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_URL}/feature-groups/`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
+      console.log('Feature groups received:', data);
       setGroups(data);
     } catch (error) {
       console.error('Error fetching groups:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCreateGroup = async () => {
-    try {
-      const response = await fetch(`${API_URL}/feature-groups`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...newGroup,
-          tags: newGroup.tags.split(',').map(tag => tag.trim())
-        }),
-      });
-      const data = await response.json();
-      setGroups([...groups, data]);
-      setOpen(false);
-      setNewGroup({
-        name: '',
-        description: '',
-        entity_type: '',
-        tags: [],
-        frequency: 'daily'
-      });
-    } catch (error) {
-      console.error('Error creating group:', error);
-    }
-  };
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={3}>
+        <Typography color="error">Error: {error}</Typography>
+      </Box>
+    );
+  }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Feature Groups</Typography>
-        <Button variant="contained" color="primary" onClick={() => setOpen(true)}>
-          Create Group
-        </Button>
-      </Box>
-
-      <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom>
+        Feature Groups
+      </Typography>
+      <Grid container spacing={3}>
         {groups.map((group) => (
-          <Card key={group.id} sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6">{group.name}</Typography>
-              <Typography color="textSecondary">{group.description}</Typography>
-              <Typography variant="body2">Entity Type: {group.entity_type}</Typography>
-              <Typography variant="body2">Frequency: {group.frequency}</Typography>
-              <Box sx={{ mt: 1 }}>
-                {group.tags.map((tag) => (
-                  <Typography
-                    key={tag}
-                    component="span"
-                    sx={{
-                      bgcolor: 'primary.light',
-                      color: 'white',
-                      px: 1,
-                      py: 0.5,
-                      borderRadius: 1,
-                      mr: 1,
-                      display: 'inline-block',
-                      mb: 1,
-                    }}
-                  >
-                    {tag}
-                  </Typography>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
+          <Grid item xs={12} sm={6} md={4} key={group.id}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  {group.name}
+                </Typography>
+                <Typography variant="body2" color="textSecondary" paragraph>
+                  {group.description}
+                </Typography>
+                <Typography variant="body2">
+                  Entity ID: {group.entity_id}
+                </Typography>
+                <Box mt={2}>
+                  {group.tags.map((tag, index) => (
+                    <Chip
+                      key={index}
+                      label={tag}
+                      size="small"
+                      style={{ margin: '0 4px 4px 0' }}
+                    />
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
         ))}
-      </Box>
-
-      <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogTitle>Create Feature Group</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Name"
-            fullWidth
-            value={newGroup.name}
-            onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Description"
-            fullWidth
-            value={newGroup.description}
-            onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Entity Type"
-            fullWidth
-            value={newGroup.entity_type}
-            onChange={(e) => setNewGroup({ ...newGroup, entity_type: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Tags (comma-separated)"
-            fullWidth
-            value={newGroup.tags}
-            onChange={(e) => setNewGroup({ ...newGroup, tags: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Frequency"
-            fullWidth
-            value={newGroup.frequency}
-            onChange={(e) => setNewGroup({ ...newGroup, frequency: e.target.value })}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleCreateGroup} color="primary">
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
+        {groups.length === 0 && (
+          <Grid item xs={12}>
+            <Typography variant="body1" color="textSecondary" align="center">
+              No feature groups found
+            </Typography>
+          </Grid>
+        )}
+      </Grid>
     </Box>
   );
 };

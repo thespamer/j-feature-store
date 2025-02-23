@@ -5,7 +5,7 @@ from pydantic import BaseModel
 class ConnectorConfig(BaseModel):
     type: str
     name: str
-    config: Dict[str, Any]
+    config: Dict[str, Any] = {}
 
 class BaseConnector(ABC):
     def __init__(self, config: ConnectorConfig):

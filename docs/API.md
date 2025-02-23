@@ -2,20 +2,12 @@
 
 ## Overview
 
-The FStore API provides endpoints for managing features, sources, and feature values in the feature store.
+The FStore API provides endpoints for managing features and feature values in the feature store. It uses MongoDB for persistent storage and Redis for caching.
 
 ## Base URL
 
 ```
 http://localhost:8000/api/v1
-```
-
-## Authentication
-
-All API requests require a Bearer token in the Authorization header:
-
-```
-Authorization: Bearer <your_token>
 ```
 
 ## Endpoints
@@ -29,29 +21,24 @@ GET /features
 ```
 
 Query Parameters:
-- `page` (optional): Page number for pagination
-- `limit` (optional): Number of items per page
-- `tag` (optional): Filter by tag
-- `owner` (optional): Filter by owner
+- `entity_id` (optional): Filter features by entity ID
 
 Response:
 ```json
-{
-  "items": [
-    {
-      "id": "uuid",
-      "name": "customer_lifetime_value",
-      "description": "Total value of customer purchases",
-      "owner": "data_team",
-      "created_at": "2025-02-20T16:02:34Z",
-      "updated_at": "2025-02-20T16:02:34Z",
-      "tags": ["customer", "financial"]
-    }
-  ],
-  "total": 100,
-  "page": 1,
-  "limit": 10
-}
+[
+  {
+    "id": "67b89a4b4bbe970976c1e99f",
+    "name": "transaction_amount",
+    "description": "Transaction amount in USD",
+    "type": "numerical",
+    "entity_id": "transaction",
+    "feature_group_id": null,
+    "tags": [],
+    "metadata": {},
+    "created_at": "2025-02-21T15:22:51Z",
+    "updated_at": null
+  }
+]
 ```
 
 #### Create Feature
@@ -63,15 +50,29 @@ POST /features
 Request Body:
 ```json
 {
-  "name": "customer_lifetime_value",
-  "description": "Total value of customer purchases",
-  "source": {
-    "type": "postgresql",
-    "query": "SELECT customer_id, SUM(value) FROM orders GROUP BY customer_id",
-    "update_frequency": "1h"
-  },
-  "tags": ["customer", "financial"],
-  "owner": "data_team"
+  "name": "transaction_amount",
+  "description": "Transaction amount in USD",
+  "type": "numerical",
+  "entity_id": "transaction",
+  "feature_group_id": null,
+  "tags": [],
+  "metadata": {}
+}
+```
+
+Response:
+```json
+{
+  "id": "67b89a4b4bbe970976c1e99f",
+  "name": "transaction_amount",
+  "description": "Transaction amount in USD",
+  "type": "numerical",
+  "entity_id": "transaction",
+  "feature_group_id": null,
+  "tags": [],
+  "metadata": {},
+  "created_at": "2025-02-21T15:22:51Z",
+  "updated_at": null
 }
 ```
 
@@ -81,40 +82,25 @@ Request Body:
 GET /features/{feature_id}
 ```
 
-#### Update Feature
-
-```http
-PATCH /features/{feature_id}
-```
-
-Request Body:
+Response:
 ```json
 {
-  "description": "Updated description",
-  "tags": ["new_tag"]
+  "id": "67b89a4b4bbe970976c1e99f",
+  "name": "transaction_amount",
+  "description": "Transaction amount in USD",
+  "type": "numerical",
+  "entity_id": "transaction",
+  "feature_group_id": null,
+  "tags": [],
+  "metadata": {},
+  "created_at": "2025-02-21T15:22:51Z",
+  "updated_at": null
 }
-```
-
-#### Delete Feature
-
-```http
-DELETE /features/{feature_id}
 ```
 
 ### Feature Values
 
-#### Get Feature Values
-
-```http
-GET /features/{feature_id}/values
-```
-
-Query Parameters:
-- `entity_ids`: Comma-separated list of entity IDs
-- `start_time` (optional): Start time for time-based features
-- `end_time` (optional): End time for time-based features
-
-#### Write Feature Values
+#### Store Feature Value
 
 ```http
 POST /features/{feature_id}/values
@@ -123,57 +109,58 @@ POST /features/{feature_id}/values
 Request Body:
 ```json
 {
-  "entity_id": "customer_123",
-  "value": 1000.50,
-  "timestamp": "2025-02-20T16:02:34Z"
+  "entity_id": "transaction_123",
+  "value": 150.50
 }
 ```
 
-### Sources
-
-#### List Sources
-
-```http
-GET /sources
-```
-
-#### Add Source
-
-```http
-POST /sources
-```
-
-Request Body:
+Response:
 ```json
 {
-  "type": "postgresql",
-  "name": "customer_database",
-  "config": {
-    "host": "localhost",
-    "port": 5432,
-    "database": "customers",
-    "user": "user",
-    "password": "password"
-  }
+  "entity_id": "transaction_123",
+  "value": 150.50,
+  "timestamp": "2025-02-21T15:23:49Z"
 }
 ```
 
-## Error Codes
+#### Get Feature Value
 
-- `400`: Bad Request
-- `401`: Unauthorized
-- `403`: Forbidden
-- `404`: Not Found
-- `409`: Conflict
-- `422`: Validation Error
-- `500`: Internal Server Error
+```http
+GET /features/{feature_id}/values/{entity_id}
+```
 
-## Rate Limiting
+Response:
+```json
+{
+  "entity_id": "transaction_123",
+  "value": 150.50,
+  "timestamp": "2025-02-21T15:23:49Z"
+}
+```
 
-The API is rate limited to:
-- 1000 requests per minute for GET endpoints
-- 100 requests per minute for POST/PATCH/DELETE endpoints
+## Storage Architecture
 
-## Versioning
+The FStore uses a dual-storage architecture:
 
-The API is versioned through the URL path. The current version is v1.
+1. **MongoDB**: Primary storage for features and feature values
+   - Features collection: Stores feature metadata
+   - Feature values collection: Stores feature values with timestamps
+
+2. **Redis**: Caching layer for fast access
+   - Feature cache: `feature:{feature_id}`
+   - Feature value cache: `feature_value:{feature_id}:{entity_id}`
+
+## Error Handling
+
+The API uses standard HTTP status codes:
+
+- 200: Success
+- 404: Resource not found
+- 422: Validation error
+- 500: Internal server error
+
+Error responses include a detail message:
+```json
+{
+  "detail": "Error message here"
+}
