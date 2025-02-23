@@ -2,10 +2,12 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 from kafka import KafkaConsumer
+from kafka.errors import KafkaError
 import json
 import os
 import time
 import logging
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -34,17 +36,52 @@ class FeatureProcessor:
         }
         logger.info(f"Postgres URL: {self.postgres_properties['url']}")
         
-        # Configurar consumidor Kafka
-        kafka_bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-        self.consumer = KafkaConsumer(
-            'feature_events',
-            bootstrap_servers=kafka_bootstrap_servers,
-            value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            auto_offset_reset='latest',
-            group_id='feature_processor',
-            enable_auto_commit=True
-        )
-        logger.info("Kafka Consumer inicializado com sucesso")
+        # Inicializar o consumidor Kafka com retry
+        self.initialize_kafka_consumer()
+
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=60))
+    def initialize_kafka_consumer(self):
+        """Inicializa o consumidor Kafka com retry"""
+        try:
+            kafka_bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+            self.consumer = KafkaConsumer(
+                'feature_events',
+                bootstrap_servers=kafka_bootstrap_servers,
+                value_deserializer=lambda x: json.loads(x.decode('utf-8')),
+                auto_offset_reset='latest',
+                group_id='feature_processor',
+                enable_auto_commit=True,
+                # Adicionar configurações de retry e timeout
+                session_timeout_ms=30000,
+                heartbeat_interval_ms=10000,
+                max_poll_interval_ms=300000,
+                request_timeout_ms=305000,
+                retry_backoff_ms=500,
+                reconnect_backoff_ms=1000,
+                reconnect_backoff_max_ms=10000
+            )
+            logger.info("Kafka Consumer inicializado com sucesso")
+        except KafkaError as e:
+            logger.error(f"Erro ao inicializar Kafka consumer: {e}")
+            raise
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    def process_message(self, message):
+        """Processa uma mensagem do Kafka com retry"""
+        try:
+            # Processar a mensagem
+            event_type = message.get('type')
+            feature_data = message.get('data')
+            
+            if event_type == 'feature_update':
+                self.process_feature_update(feature_data)
+            elif event_type == 'feature_delete':
+                self.process_feature_delete(feature_data)
+            else:
+                logger.warning(f"Tipo de evento desconhecido: {event_type}")
+        except Exception as e:
+            logger.error(f"Erro ao processar mensagem: {e}")
+            raise
 
     def create_table_if_not_exists(self, table_name):
         """Criar tabela se não existir"""
@@ -152,39 +189,39 @@ class FeatureProcessor:
             return False
 
     def run(self):
-        """Loop principal de processamento"""
-        logger.info("Iniciando loop de processamento...")
+        """Executa o processador de features"""
+        logger.info("Iniciando processamento de features...")
         
         while True:
             try:
-                # Consumir mensagens do Kafka
-                logger.info("Aguardando mensagens do Kafka...")
-                for message in self.consumer:
-                    try:
-                        event_data = message.value
-                        logger.info(f"Recebido evento: {json.dumps(event_data, indent=2)}")
-                        
-                        success = self.process_batch_features(
-                            event_data["feature_group"],
-                            event_data["data"],
-                            event_data["transformation"]
-                        )
-                        
-                        if success:
-                            logger.info("Evento processado com sucesso")
-                        else:
-                            logger.error("Falha ao processar evento")
-                            
-                    except Exception as e:
-                        logger.error(f"Erro ao processar mensagem: {str(e)}")
-                        import traceback
-                        logger.error(f"Stack trace: {traceback.format_exc()}")
-                        
+                # Poll for messages
+                messages = self.consumer.poll(timeout_ms=1000)
+                
+                for topic_partition, batch in messages.items():
+                    for message in batch:
+                        try:
+                            data = message.value
+                            logger.info(f"Processando mensagem: {data}")
+                            self.process_message(data)
+                        except Exception as e:
+                            logger.error(f"Erro ao processar mensagem {message}: {e}")
+                            continue
+                
+                # Se não houver mensagens, aguarde um pouco
+                if not messages:
+                    time.sleep(1)
+                    
+            except KafkaError as e:
+                logger.error(f"Erro no Kafka consumer: {e}")
+                # Tentar reinicializar o consumer
+                try:
+                    self.initialize_kafka_consumer()
+                except Exception as reinit_error:
+                    logger.error(f"Falha ao reinicializar Kafka consumer: {reinit_error}")
+                    time.sleep(5)  # Aguardar antes de tentar novamente
             except Exception as e:
-                logger.error(f"Erro no loop principal: {str(e)}")
-                import traceback
-                logger.error(f"Stack trace: {traceback.format_exc()}")
-                time.sleep(5)  # Esperar um pouco antes de tentar novamente
+                logger.error(f"Erro inesperado: {e}")
+                time.sleep(5)  # Aguardar antes de tentar novamente
 
 if __name__ == "__main__":
     processor = FeatureProcessor()
