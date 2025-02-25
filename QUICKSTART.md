@@ -1,89 +1,26 @@
-# Quick Start Guide
+# Guia de Início Rápido
 
-## Prerequisites
-- Docker and Docker Compose
-- Python 3.8 or higher
-- curl (for API examples)
+## Pré-requisitos
+- Docker e Docker Compose
+- Python 3.8 ou superior
+- curl (para exemplos de API)
 
-## Setup
+## Instalação
 
-1. **Clone the Repository**
+1. **Clone o Repositório**
 ```bash
 git clone https://github.com/yourusername/feature-store.git
 cd feature-store
 ```
 
-2. **Start the Services**
+2. **Configure as Variáveis de Ambiente**
 ```bash
-docker compose up -d
+cp .env.example .env
 ```
 
-This will start:
-- Backend API (FastAPI)
-- Feature Processor (Spark)
-- PostgreSQL
-- MongoDB
-- Redis
-- Kafka & Zookeeper
+Edite o arquivo `.env` com suas configurações:
 
-3. **Verify Services**
-```bash
-# Check health endpoint
-curl http://localhost:8000/api/v1/monitoring/health
-
-# Check metrics
-curl http://localhost:8000/api/v1/monitoring/metrics
-```
-
-## Basic Usage
-
-### 1. Create a Feature Group
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{
-    "name": "user_features",
-    "description": "User behavioral features",
-    "entity_id": "user_id",
-    "entity_type": "user"
-  }' \
-  http://localhost:8000/api/v1/feature-groups/
-```
-
-### 2. Create a Feature
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{
-    "name": "purchase_count",
-    "description": "Number of purchases",
-    "feature_group_id": "<feature_group_id>",
-    "type": "double",
-    "entity_id": "user_id"
-  }' \
-  http://localhost:8000/api/v1/features/
-```
-
-### 3. Store a Feature Value
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{
-    "feature_id": "<feature_id>",
-    "entity_id": "user123",
-    "value": 42.0,
-    "timestamp": "2025-02-25T11:17:00Z"
-  }' \
-  http://localhost:8000/api/v1/features/<feature_id>/values
-```
-
-### 4. Retrieve a Feature Value
-```bash
-curl http://localhost:8000/api/v1/features/<feature_id>/values/user123
-```
-
-## Environment Variables
-
-The system can be configured using these environment variables:
-
-```bash
+```env
 # PostgreSQL
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
@@ -104,72 +41,131 @@ KAFKA_BOOTSTRAP_SERVERS=kafka:9092
 KAFKA_TOPIC=feature_events
 ```
 
-## Development Setup
+3. **Inicie os Serviços**
+```bash
+docker compose up -d
+```
 
-1. **Install Dependencies**
+## Uso Básico
+
+### 1. Criar um Grupo de Features
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "name": "user_features",
+    "description": "Métricas de comportamento do usuário",
+    "entity_id": "user_id",
+    "entity_type": "user"
+  }' \
+  http://localhost:8000/api/v1/feature-groups/
+```
+
+### 2. Criar uma Feature
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "name": "purchase_count",
+    "description": "Número de compras",
+    "feature_group_id": "<id_do_grupo>",
+    "type": "double",
+    "entity_id": "user_id"
+  }' \
+  http://localhost:8000/api/v1/features/
+```
+
+### 3. Armazenar um Valor de Feature
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "feature_id": "<id_da_feature>",
+    "entity_id": "user123",
+    "value": 42.0,
+    "timestamp": "2025-02-25T11:17:00Z"
+  }' \
+  http://localhost:8000/api/v1/features/<id_da_feature>/values
+```
+
+### 4. Recuperar um Valor de Feature
+```bash
+curl http://localhost:8000/api/v1/features/<id_da_feature>/values/user123
+```
+
+## Verificação dos Serviços
+
+### Status dos Containers
+```bash
+docker compose ps
+```
+
+### Logs dos Serviços
 ```bash
 # Backend
-cd backend
-pip install -r requirements.txt
+docker compose logs backend
 
-# Feature Processor
-cd spark
-pip install -r requirements.txt
+# Processador de Features
+docker compose logs feature-processor
+
+# PostgreSQL
+docker compose logs postgres
 ```
 
-2. **Run Tests**
+## Resolução de Problemas
+
+### 1. Problemas de Conexão
+
+Se houver problemas de conexão, verifique:
+- Os serviços estão rodando? (`docker compose ps`)
+- As variáveis de ambiente estão corretas? (`.env`)
+- Os logs mostram algum erro? (`docker compose logs`)
+
+### 2. Erros Comuns
+
+#### Erro 500 na API
+- Verifique os logs do backend
+- Confirme se o MongoDB e PostgreSQL estão acessíveis
+- Verifique se as migrations foram aplicadas
+
+#### Dados Não Aparecem
+- Verifique os logs do processador de features
+- Confirme se o Kafka está recebendo mensagens
+- Verifique se o PostgreSQL está armazenando os dados
+
+#### Problemas de Cache
+- Verifique se o Redis está rodando
+- Confirme se a conexão com Redis está correta
+- Verifique os logs de cache no backend
+
+## Desenvolvimento
+
+### Ambiente de Desenvolvimento
 ```bash
-# Unit tests
-pytest backend/tests/unit
+# Instalar dependências de desenvolvimento
+pip install -r requirements-dev.txt
 
-# Integration tests
-pytest backend/tests/integration
+# Executar testes
+docker compose run --rm e2e-tests pytest
 
-# End-to-end tests
-pytest e2e/tests
+# Verificar cobertura de código
+docker compose run --rm backend-test pytest --cov=app
 ```
 
-3. **Local Development**
+### Comandos Úteis
+
 ```bash
-# Start backend in development mode
-cd backend
-uvicorn app.main:app --reload
+# Reiniciar todos os serviços
+docker compose down && docker compose up -d
 
-# Start feature processor
-cd spark
-python -m feature_processor.processor
+# Limpar todos os dados
+docker compose down -v
+
+# Reconstruir imagens
+docker compose build --no-cache
 ```
 
-## Common Issues
+## Próximos Passos
 
-1. **Service Dependencies**
-- Ensure PostgreSQL is fully initialized before starting the backend
-- Wait for Kafka to be ready before starting the feature processor
-- Check service health endpoints if experiencing connection issues
-
-2. **Data Types**
-- Feature values must match their defined types
-- Timestamps should be in ISO format
-- IDs should be valid strings
-
-3. **Performance**
-- Use batch operations for multiple feature values
-- Monitor Redis cache hit rates
-- Check Kafka consumer lag
-
-## Next Steps
-
-1. **Production Deployment**
-- Set up monitoring and alerting
-- Configure backup and recovery
-- Implement authentication and authorization
-
-2. **Feature Development**
-- Add new feature types
-- Implement feature versioning
-- Add batch import/export capabilities
-
-3. **Integration**
-- Connect with ML training pipelines
-- Set up real-time feature generation
-- Implement feature serving API
+1. Explore a [documentação da arquitetura](ARCHITECTURE.md)
+2. Veja os [testes](TESTS.md) para entender o comportamento do sistema
+3. Configure monitoramento com Prometheus e Grafana
+4. Implemente autenticação e autorização
+5. Adicione mais features e transformadores

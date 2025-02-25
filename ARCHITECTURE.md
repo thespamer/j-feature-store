@@ -49,6 +49,167 @@ A Feature Store é uma plataforma moderna e escalável que suporta transformaç�
   - Suporta múltiplos consumidores
   - Mantém ordenação de mensagens
 
+## Diagramas
+
+### Diagrama de Classes
+
+```mermaid
+classDiagram
+    class Feature {
+        +str id
+        +str name
+        +str description
+        +str type
+        +dict metadata
+        +datetime created_at
+        +datetime updated_at
+        +validate()
+        +to_dict()
+    }
+
+    class FeatureGroup {
+        +str id
+        +str name
+        +str description
+        +List[str] feature_ids
+        +dict metadata
+        +datetime created_at
+        +add_feature()
+        +remove_feature()
+        +get_features()
+    }
+
+    class Transformer {
+        +str id
+        +str type
+        +dict params
+        +dict state
+        +fit(data)
+        +transform(data)
+        +save_state()
+        +load_state()
+    }
+
+    class FeatureStore {
+        +MongoClient metadata_store
+        +Redis online_store
+        +PostgresClient offline_store
+        +register_feature()
+        +get_feature()
+        +update_feature()
+        +delete_feature()
+        +get_feature_value()
+    }
+
+    class FeatureProcessor {
+        +KafkaConsumer consumer
+        +SparkSession spark
+        +process_event()
+        +update_feature_values()
+        +compute_statistics()
+    }
+
+    FeatureStore "1" -- "*" Feature
+    FeatureStore "1" -- "*" FeatureGroup
+    FeatureStore "1" -- "*" Transformer
+    FeatureGroup "*" -- "*" Feature
+    Feature "1" -- "0..1" Transformer
+```
+
+### Diagrama de Componentes
+
+```mermaid
+C4Component
+    title Diagrama de Componentes da Feature Store
+
+    Container_Boundary(api, "Camada API") {
+        Component(rest_api, "API REST", "FastAPI", "Endpoints RESTful para gerenciamento")
+        Component(auth, "Serviço Auth", "JWT", "Autenticação e autorização")
+    }
+
+    Container_Boundary(processing, "Camada de Processamento") {
+        Component(feature_processor, "Processador de Features", "Python", "Processamento de features")
+        Component(spark_jobs, "Jobs Spark", "PySpark", "Transformações em batch")
+    }
+
+    Container_Boundary(storage, "Camada de Armazenamento") {
+        Component(metadata_store, "Metadata Store", "MongoDB", "Armazenamento de metadados")
+        Component(online_store, "Online Store", "Redis", "Cache e servimento rápido")
+        Component(offline_store, "Offline Store", "PostgreSQL", "Armazenamento persistente")
+    }
+
+    Container_Boundary(streaming, "Camada de Streaming") {
+        Component(kafka, "Stream de Eventos", "Kafka", "Stream de eventos")
+        Component(consumer, "Consumidor", "Python", "Consumo de eventos")
+    }
+
+    Container_Boundary(monitoring, "Camada de Monitoramento") {
+        Component(health, "Health Check", "FastAPI", "Monitoramento de saúde")
+        Component(metrics, "Métricas", "FastAPI", "Métricas do sistema")
+    }
+
+    Rel(rest_api, auth, "Usa")
+    Rel(rest_api, metadata_store, "CRUD")
+    Rel(rest_api, online_store, "Leitura/Escrita")
+    Rel(feature_processor, kafka, "Consome")
+    Rel(feature_processor, offline_store, "Persiste")
+    Rel(feature_processor, online_store, "Atualiza")
+    Rel(spark_jobs, offline_store, "Processa")
+    Rel(consumer, kafka, "Consome")
+    Rel(consumer, feature_processor, "Processa")
+    Rel(health, metadata_store, "Verifica")
+    Rel(health, online_store, "Verifica")
+    Rel(health, offline_store, "Verifica")
+    Rel(metrics, metadata_store, "Coleta")
+```
+
+### Fluxo de Dados
+
+#### 1. Criação e Registro de Features
+```mermaid
+sequenceDiagram
+    Cliente->>API: Requisição de Criação de Feature
+    API->>Registro: Registra Feature
+    Registro->>MongoDB: Armazena Metadados
+    Registro->>Redis: Cache de Metadados
+    API-->>Cliente: Resposta de Feature Criada
+```
+
+#### 2. Transformação e Armazenamento
+```mermaid
+sequenceDiagram
+    Cliente->>API: Requisição para Armazenar Valor
+    API->>Transformador: Transforma Valor
+    Transformador->>MongoDB: Armazena Original & Transformado
+    Transformador->>Redis: Cache do Último Valor
+    API-->>Cliente: Resposta de Valor Armazenado
+```
+
+#### 3. Recuperação de Valores
+```mermaid
+sequenceDiagram
+    Cliente->>API: Requisição de Valor
+    API->>Redis: Verifica Cache
+    alt Cache Hit
+        Redis-->>API: Retorna Valor em Cache
+    else Cache Miss
+        API->>MongoDB: Consulta Valor
+        API->>Transformador: Transforma se necessário
+        API->>Redis: Atualiza Cache
+        API-->>Cliente: Resposta com Valor
+    end
+```
+
+#### 4. Gerenciamento de Versões
+```mermaid
+sequenceDiagram
+    Cliente->>Registro: Registra Nova Versão
+    Registro->>MongoDB: Armazena Config da Versão
+    Registro->>Transformador: Atualiza Transformador
+    Transformador->>Redis: Cache do Novo Transformador
+    Registro-->>Cliente: Versão Registrada
+```
+
 ## Fluxo de Dados
 
 1. **Criação de Feature**:

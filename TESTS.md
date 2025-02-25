@@ -115,21 +115,21 @@ async def test_exemplo():
 - Testar cenários de erro
 - Validar mecanismos de retry e fallback
 
-## End-to-End Tests
+## Testes End-to-End
 
-## Feature Flow Test
+## Teste de Fluxo de Features
 
 O teste end-to-end `test_feature_flow.py` valida o fluxo completo de criação e recuperação de features, garantindo que todos os componentes do sistema estão funcionando corretamente em conjunto.
 
 ### Componentes Testados
 
-1. **Backend API**
-   - Criação de feature groups
+1. **API Backend**
+   - Criação de grupos de features
    - Criação de features
    - Armazenamento de valores
    - Recuperação de valores
 
-2. **Feature Processor**
+2. **Processador de Features**
    - Processamento de eventos Kafka
    - Transformação de dados
    - Persistência no PostgreSQL
@@ -141,14 +141,14 @@ O teste end-to-end `test_feature_flow.py` valida o fluxo completo de criação e
 
 ### Fluxo do Teste
 
-1. **Criação de Feature Group**
+1. **Criação de Grupo de Features**
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{
-    "name": "test_group",
-    "description": "Test group",
-    "entity_id": "test_entity",
-    "entity_type": "test"
+    "name": "grupo_teste",
+    "description": "Grupo de teste",
+    "entity_id": "entidade_teste",
+    "entity_type": "teste"
   }' \
   http://localhost:8000/api/v1/feature-groups/
 ```
@@ -157,11 +157,11 @@ curl -X POST -H "Content-Type: application/json" \
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{
-    "name": "test_feature",
-    "description": "Test feature",
-    "feature_group_id": "<feature_group_id>",
+    "name": "feature_teste",
+    "description": "Feature de teste",
+    "feature_group_id": "<id_do_grupo>",
     "type": "double",
-    "entity_id": "test_entity"
+    "entity_id": "entidade_teste"
   }' \
   http://localhost:8000/api/v1/features/
 ```
@@ -170,27 +170,27 @@ curl -X POST -H "Content-Type: application/json" \
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{
-    "feature_id": "<feature_id>",
-    "entity_id": "test_entity",
+    "feature_id": "<id_da_feature>",
+    "entity_id": "entidade_teste",
     "value": 42.0,
     "timestamp": "2025-02-25T11:17:00Z"
   }' \
-  http://localhost:8000/api/v1/features/<feature_id>/values
+  http://localhost:8000/api/v1/features/<id_da_feature>/values
 ```
 
 4. **Recuperação de Valor**
 ```bash
-curl http://localhost:8000/api/v1/features/<feature_id>/values/test_entity
+curl http://localhost:8000/api/v1/features/<id_da_feature>/values/entidade_teste
 ```
 
 ### Validações
 
 O teste verifica:
-1. Criação bem-sucedida de feature groups e features
+1. Criação bem-sucedida de grupos de features e features
 2. Armazenamento correto de valores no PostgreSQL
 3. Cache funcionando no Redis
 4. Consistência entre MongoDB e PostgreSQL
-5. Processamento correto de eventos pelo Feature Processor
+5. Processamento correto de eventos pelo Processador de Features
 
 ### Executando o Teste
 
@@ -202,7 +202,7 @@ docker compose up -d
 docker compose run --rm e2e-tests pytest e2e/tests/test_feature_flow.py
 ```
 
-### Troubleshooting
+### Resolução de Problemas
 
 Se o teste falhar, verifique:
 
@@ -217,7 +217,7 @@ Se o teste falhar, verifique:
 # Verificar logs do backend
 docker compose logs backend
 
-# Verificar logs do feature processor
+# Verificar logs do processador de features
 docker compose logs feature-processor
 
 # Verificar logs do PostgreSQL
@@ -234,7 +234,7 @@ docker compose logs postgres
 
 1. **Inicialização dos Serviços**
    - Aguardar PostgreSQL estar pronto antes de iniciar o backend
-   - Aguardar Kafka estar pronto antes de iniciar o feature processor
+   - Aguardar Kafka estar pronto antes de iniciar o processador de features
 
 2. **Tipos de Dados**
    - Valores de features devem corresponder ao tipo definido
