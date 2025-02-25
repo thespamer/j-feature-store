@@ -146,6 +146,120 @@ sequenceDiagram
     Registry-->>Client: Version Registered
 ```
 
+## Diagramas
+
+### Diagrama de Classes
+
+```mermaid
+classDiagram
+    class Feature {
+        +str id
+        +str name
+        +str description
+        +str type
+        +dict metadata
+        +datetime created_at
+        +datetime updated_at
+        +validate()
+        +to_dict()
+    }
+
+    class FeatureGroup {
+        +str id
+        +str name
+        +str description
+        +List[str] feature_ids
+        +dict metadata
+        +datetime created_at
+        +add_feature()
+        +remove_feature()
+        +get_features()
+    }
+
+    class Transformer {
+        +str id
+        +str type
+        +dict params
+        +dict state
+        +fit(data)
+        +transform(data)
+        +save_state()
+        +load_state()
+    }
+
+    class FeatureStore {
+        +MongoClient metadata_store
+        +Redis online_store
+        +PostgresClient offline_store
+        +register_feature()
+        +get_feature()
+        +update_feature()
+        +delete_feature()
+        +get_feature_value()
+    }
+
+    class FeatureProcessor {
+        +KafkaConsumer consumer
+        +SparkSession spark
+        +process_event()
+        +update_feature_values()
+        +compute_statistics()
+    }
+
+    FeatureStore "1" -- "*" Feature
+    FeatureStore "1" -- "*" FeatureGroup
+    FeatureStore "1" -- "*" Transformer
+    FeatureGroup "*" -- "*" Feature
+    Feature "1" -- "0..1" Transformer
+```
+
+### Diagrama de Componentes
+
+```mermaid
+C4Component
+    title Diagrama de Componentes do Feature Store
+
+    Container_Boundary(api, "API Layer") {
+        Component(rest_api, "REST API", "FastAPI", "Endpoints RESTful para gerenciamento")
+        Component(auth, "Auth Service", "JWT", "Autenticação e autorização")
+    }
+
+    Container_Boundary(processing, "Processing Layer") {
+        Component(feature_processor, "Feature Processor", "Python", "Processamento de features")
+        Component(spark_jobs, "Spark Jobs", "PySpark", "Transformações em batch")
+    }
+
+    Container_Boundary(storage, "Storage Layer") {
+        Component(metadata_store, "Metadata Store", "MongoDB", "Armazenamento de metadados")
+        Component(online_store, "Online Store", "Redis", "Cache e servimento rápido")
+        Component(offline_store, "Offline Store", "PostgreSQL", "Armazenamento persistente")
+    }
+
+    Container_Boundary(streaming, "Streaming Layer") {
+        Component(kafka, "Event Stream", "Kafka", "Stream de eventos")
+        Component(consumer, "Event Consumer", "Python", "Consumo de eventos")
+    }
+
+    Container_Boundary(monitoring, "Monitoring Layer") {
+        Component(health, "Health Check", "FastAPI", "Monitoramento de saúde")
+        Component(metrics, "Metrics", "FastAPI", "Métricas do sistema")
+    }
+
+    Rel(rest_api, auth, "Usa")
+    Rel(rest_api, metadata_store, "CRUD")
+    Rel(rest_api, online_store, "Leitura/Escrita")
+    Rel(feature_processor, kafka, "Consome")
+    Rel(feature_processor, offline_store, "Persiste")
+    Rel(feature_processor, online_store, "Atualiza")
+    Rel(spark_jobs, offline_store, "Processa")
+    Rel(consumer, kafka, "Consome")
+    Rel(consumer, feature_processor, "Processa")
+    Rel(health, metadata_store, "Verifica")
+    Rel(health, online_store, "Verifica")
+    Rel(health, offline_store, "Verifica")
+    Rel(metrics, metadata_store, "Coleta")
+```
+
 ## Design Decisions
 
 ### 1. Feature Registry

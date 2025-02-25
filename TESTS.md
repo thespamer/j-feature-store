@@ -1,75 +1,75 @@
-# Testing Guide
+# Guia de Testes
 
-This document describes how to run and write tests for the Feature Store project.
+Este documento descreve como executar e escrever testes para o projeto Feature Store.
 
-## Test Environment Setup
+## Configuração do Ambiente de Testes
 
-The project uses Docker Compose to create an isolated test environment with all necessary dependencies:
+O projeto utiliza Docker Compose para criar um ambiente de testes isolado com todas as dependências necessárias:
 
-- MongoDB for feature storage
-- Redis for caching
-- Kafka for event streaming
-- PostgreSQL for metadata storage
+- MongoDB para armazenamento de features
+- Redis para cache
+- Kafka para streaming de eventos
+- PostgreSQL para armazenamento de metadados
 
-## Running Tests
+## Executando os Testes
 
-To run all tests, execute:
+Para executar todos os testes, execute:
 
 ```bash
 docker compose build backend-test
 docker compose run --rm backend-test
 ```
 
-This will:
-1. Build the test container with all required dependencies
-2. Run the test suite in an isolated environment
-3. Display test results with detailed output
+Isso irá:
+1. Construir o container de teste com todas as dependências necessárias
+2. Executar a suíte de testes em um ambiente isolado
+3. Exibir os resultados dos testes com saída detalhada
 
-## Test Structure
+## Estrutura dos Testes
 
-### Directory Structure
+### Estrutura de Diretórios
 
 ```
 backend/
 ├── tests/
-│   ├── conftest.py         # Test configuration and fixtures
-│   ├── test_monitoring.py  # Tests for monitoring endpoints
-│   └── ...                 # Other test files
+│   ├── conftest.py         # Configuração e fixtures dos testes
+│   ├── test_monitoring.py  # Testes para endpoints de monitoramento
+│   └── ...                 # Outros arquivos de teste
 ```
 
-### Test Configuration
+### Configuração dos Testes
 
-The test environment is configured in `backend/tests/conftest.py` with:
-- Event loop setup for async tests
-- Feature store initialization
-- Database connections setup
+O ambiente de testes é configurado em `backend/tests/conftest.py` com:
+- Configuração do event loop para testes assíncronos
+- Inicialização do feature store
+- Configuração das conexões com banco de dados
 
-### Available Test Suites
+### Suítes de Teste Disponíveis
 
-#### Monitoring Tests (`test_monitoring.py`)
+#### Testes de Monitoramento (`test_monitoring.py`)
 
-Tests the health and metrics endpoints:
+Testa os endpoints de saúde e métricas:
 
-1. Health Check (`test_health_check`):
-   - Verifies the `/api/v1/monitoring/health` endpoint
-   - Checks MongoDB and Redis connection status
-   - Validates response format and status codes
+1. Verificação de Saúde (`test_health_check`):
+   - Verifica o endpoint `/api/v1/monitoring/health`
+   - Checa o status das conexões com MongoDB e Redis
+   - Valida o formato da resposta e códigos de status
 
-2. Metrics (`test_metrics`):
-   - Tests the `/api/v1/monitoring/metrics` endpoint
-   - Verifies feature store statistics
-   - Validates connection health status
+2. Métricas (`test_metrics`):
+   - Testa o endpoint `/api/v1/monitoring/metrics`
+   - Verifica as estatísticas do feature store
+   - Valida o status de saúde das conexões
 
-## Writing New Tests
+## Escrevendo Novos Testes
 
-### Test Requirements
+### Requisitos para Testes
 
-Tests should be written using:
-- `pytest` for test framework
-- `pytest-asyncio` for async test support
-- `httpx` for async HTTP client
+Os testes devem ser escritos usando:
+- `pytest` como framework de teste
+- `pytest-asyncio` para suporte a testes assíncronos
+- `httpx` para cliente HTTP assíncrono
 
-### Example Test
+### Exemplo de Teste
 
 ```python
 import pytest
@@ -77,25 +77,25 @@ from httpx import AsyncClient
 from app.main import app
 
 @pytest.mark.asyncio
-async def test_example():
+async def test_exemplo():
     async with AsyncClient(app=app, base_url="http://test") as client:
-        response = await client.get("/api/v1/your-endpoint")
+        response = await client.get("/api/v1/seu-endpoint")
         assert response.status_code == 200
         data = response.json()
-        assert "expected_field" in data
+        assert "campo_esperado" in data
 ```
 
-### Best Practices
+### Boas Práticas
 
-1. Use async/await for all database and HTTP operations
-2. Isolate tests using fixtures when needed
-3. Clean up any test data after tests complete
-4. Use descriptive test names and clear assertions
-5. Add proper error messages to assertions
+1. Use async/await para todas as operações de banco de dados e HTTP
+2. Isole os testes usando fixtures quando necessário
+3. Limpe quaisquer dados de teste após a conclusão
+4. Use nomes descritivos para os testes e assertions claras
+5. Adicione mensagens de erro apropriadas às assertions
 
-## Environment Variables
+## Variáveis de Ambiente
 
-The test environment uses these environment variables:
+O ambiente de teste usa estas variáveis de ambiente:
 
 ```yaml
 MONGODB_URI=mongodb://mongodb:27017/fstore
@@ -105,20 +105,20 @@ KAFKA_BOOTSTRAP_SERVERS=kafka:9092
 TESTING=true
 ```
 
-## Troubleshooting
+## Resolução de Problemas
 
-Common issues and solutions:
+Problemas comuns e soluções:
 
-1. **Connection Errors**:
-   - Ensure all required services are running (`docker compose ps`)
-   - Check service logs (`docker compose logs <service-name>`)
+1. **Erros de Conexão**:
+   - Certifique-se de que todos os serviços necessários estão rodando (`docker compose ps`)
+   - Verifique os logs dos serviços (`docker compose logs <nome-do-servico>`)
 
-2. **Test Failures**:
-   - Verify environment variables are set correctly
-   - Check database connectivity
-   - Ensure feature store is properly initialized
+2. **Falhas nos Testes**:
+   - Verifique se as variáveis de ambiente estão configuradas corretamente
+   - Verifique a conectividade com o banco de dados
+   - Certifique-se de que o feature store foi inicializado corretamente
 
-3. **Import Errors**:
-   - Verify PYTHONPATH is set to `/app`
-   - Check all dependencies are installed
-   - Ensure package structure is correct
+3. **Erros de Importação**:
+   - Verifique se o PYTHONPATH está configurado para `/app`
+   - Verifique se todas as dependências estão instaladas
+   - Certifique-se de que a estrutura do pacote está correta
