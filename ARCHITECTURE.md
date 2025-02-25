@@ -1,8 +1,8 @@
-# FStore Architecture
+# JStore Architecture
 
 ## Overview
 
-FStore é uma feature store moderna e escalável que suporta transformação, armazenamento e servimento de features para machine learning. A arquitetura é construída em torno dos princípios de confiabilidade, escalabilidade e facilidade de uso.
+JStore é uma feature store moderna e escalável que suporta transformação, armazenamento e servimento de features para machine learning. A arquitetura é construída em torno dos princípios de confiabilidade, escalabilidade e facilidade de uso.
 
 ## System Components
 
