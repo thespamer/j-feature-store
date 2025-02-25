@@ -1,6 +1,6 @@
-# FStore - Plataforma Moderna de Feature Store
+# JStore - Plataforma Moderna de Feature Store
 
-FStore é uma plataforma poderosa e escalável de Feature Store que ajuda cientistas de dados e engenheiros de ML a gerenciar, armazenar e servir features para aplicações de machine learning.
+JStore é uma plataforma poderosa e escalável de Feature Store que ajuda cientistas de dados e engenheiros de ML a gerenciar, armazenar e servir features para aplicações de machine learning.
 
 ## O que é uma Feature Store?
 
@@ -57,9 +57,9 @@ Uma Feature Store é um componente central da infraestrutura de Machine Learning
    }
    ```
 
-### Como a FStore se Destaca
+### Como a JStore se Destaca
 
-A FStore oferece uma solução moderna e completa para estes desafios:
+A JStore oferece uma solução moderna e completa para estes desafios:
 
 1. **Processamento Dual-Store**
    - Store Online (Redis) para serving em tempo real
