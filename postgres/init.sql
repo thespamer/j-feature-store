@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS feature_values (
+    id SERIAL PRIMARY KEY,
+    feature_id VARCHAR(255) NOT NULL,
+    entity_id VARCHAR(255) NOT NULL,
+    value DOUBLE PRECISION NOT NULL,
+    timestamp BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

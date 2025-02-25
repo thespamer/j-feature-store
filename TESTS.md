@@ -93,32 +93,154 @@ async def test_exemplo():
 4. Use nomes descritivos para os testes e assertions claras
 5. Adicione mensagens de erro apropriadas às assertions
 
-## Variáveis de Ambiente
+## Testes Planejados
 
-O ambiente de teste usa estas variáveis de ambiente:
+### Testes de Integração
+- Validar a interação entre os diferentes componentes do sistema
+- Testar o fluxo de dados entre o backend e os bancos de dados
+- Verificar a integração com Kafka e PostgreSQL
 
-```yaml
-MONGODB_URI=mongodb://mongodb:27017/fstore
-REDIS_URI=redis://redis:6379/0
-POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/fstore
-KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-TESTING=true
+### Testes End-to-End
+- Validar o fluxo completo do sistema
+- Testar cenários reais de uso
+- Verificar a integração entre todos os componentes
+
+### Testes de Performance
+- Avaliar o desempenho sob carga
+- Medir tempos de resposta
+- Identificar gargalos
+
+### Testes de Resiliência
+- Verificar recuperação de falhas
+- Testar cenários de erro
+- Validar mecanismos de retry e fallback
+
+## End-to-End Tests
+
+## Feature Flow Test
+
+O teste end-to-end `test_feature_flow.py` valida o fluxo completo de criação e recuperação de features, garantindo que todos os componentes do sistema estão funcionando corretamente em conjunto.
+
+### Componentes Testados
+
+1. **Backend API**
+   - Criação de feature groups
+   - Criação de features
+   - Armazenamento de valores
+   - Recuperação de valores
+
+2. **Feature Processor**
+   - Processamento de eventos Kafka
+   - Transformação de dados
+   - Persistência no PostgreSQL
+
+3. **Bancos de Dados**
+   - MongoDB: Armazenamento de metadados
+   - PostgreSQL: Armazenamento de valores
+   - Redis: Cache de valores
+
+### Fluxo do Teste
+
+1. **Criação de Feature Group**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "name": "test_group",
+    "description": "Test group",
+    "entity_id": "test_entity",
+    "entity_type": "test"
+  }' \
+  http://localhost:8000/api/v1/feature-groups/
 ```
 
-## Resolução de Problemas
+2. **Criação de Feature**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "name": "test_feature",
+    "description": "Test feature",
+    "feature_group_id": "<feature_group_id>",
+    "type": "double",
+    "entity_id": "test_entity"
+  }' \
+  http://localhost:8000/api/v1/features/
+```
 
-Problemas comuns e soluções:
+3. **Armazenamento de Valor**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "feature_id": "<feature_id>",
+    "entity_id": "test_entity",
+    "value": 42.0,
+    "timestamp": "2025-02-25T11:17:00Z"
+  }' \
+  http://localhost:8000/api/v1/features/<feature_id>/values
+```
 
-1. **Erros de Conexão**:
-   - Certifique-se de que todos os serviços necessários estão rodando (`docker compose ps`)
-   - Verifique os logs dos serviços (`docker compose logs <nome-do-servico>`)
+4. **Recuperação de Valor**
+```bash
+curl http://localhost:8000/api/v1/features/<feature_id>/values/test_entity
+```
 
-2. **Falhas nos Testes**:
-   - Verifique se as variáveis de ambiente estão configuradas corretamente
-   - Verifique a conectividade com o banco de dados
-   - Certifique-se de que o feature store foi inicializado corretamente
+### Validações
 
-3. **Erros de Importação**:
-   - Verifique se o PYTHONPATH está configurado para `/app`
-   - Verifique se todas as dependências estão instaladas
-   - Certifique-se de que a estrutura do pacote está correta
+O teste verifica:
+1. Criação bem-sucedida de feature groups e features
+2. Armazenamento correto de valores no PostgreSQL
+3. Cache funcionando no Redis
+4. Consistência entre MongoDB e PostgreSQL
+5. Processamento correto de eventos pelo Feature Processor
+
+### Executando o Teste
+
+```bash
+# Inicia os serviços necessários
+docker compose up -d
+
+# Executa o teste
+docker compose run --rm e2e-tests pytest e2e/tests/test_feature_flow.py
+```
+
+### Troubleshooting
+
+Se o teste falhar, verifique:
+
+1. **Conectividade dos Serviços**
+   - PostgreSQL está acessível
+   - MongoDB está acessível
+   - Redis está acessível
+   - Kafka está recebendo mensagens
+
+2. **Logs dos Serviços**
+```bash
+# Verificar logs do backend
+docker compose logs backend
+
+# Verificar logs do feature processor
+docker compose logs feature-processor
+
+# Verificar logs do PostgreSQL
+docker compose logs postgres
+```
+
+3. **Estado dos Dados**
+   - Feature existe no MongoDB
+   - Feature existe no PostgreSQL
+   - Valor está sendo armazenado corretamente
+   - Cache está funcionando no Redis
+
+### Problemas Conhecidos
+
+1. **Inicialização dos Serviços**
+   - Aguardar PostgreSQL estar pronto antes de iniciar o backend
+   - Aguardar Kafka estar pronto antes de iniciar o feature processor
+
+2. **Tipos de Dados**
+   - Valores de features devem corresponder ao tipo definido
+   - IDs devem ser strings válidas
+   - Timestamps devem estar em formato ISO
+
+3. **Cache**
+   - Verificar TTL do cache no Redis
+   - Garantir consistência entre cache e banco de dados

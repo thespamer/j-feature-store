@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  feature-processor-test:
+    build:
+      context: ./spark
+      dockerfile: Dockerfile.test
+    environment:
+      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/fstore
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - TESTING=true
+    depends_on:
+      - kafka
+      - postgres

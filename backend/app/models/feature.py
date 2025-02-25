@@ -28,7 +28,7 @@ class Feature(BaseModel):
 class FeatureValue(BaseModel):
     feature_id: str
     entity_id: str
-    value: str
+    value: float
     timestamp: Optional[datetime] = None
 
 class FeatureCreate(BaseModel):

@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copiar apenas os arquivos necessários
+COPY e2e/requirements.e2e.txt .
+COPY e2e/tests ./e2e/tests
+
+# Instalar dependências
+RUN pip install --no-cache-dir -r requirements.e2e.txt
+
+# Comando padrão para executar os testes
+CMD ["pytest", "-v", "e2e/tests"]

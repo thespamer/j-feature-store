@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  e2e-tests:
+    build:
+      context: .
+      dockerfile: e2e/Dockerfile.e2e
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/fstore_e2e
+      - REDIS_URI=redis://redis:6379/1
+      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/fstore_e2e
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC_PREFIX=e2e_test
+      - TESTING=true
+      - E2E_TESTING=true
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      feature-processor:
+        condition: service_healthy
+
+  mongodb:
+    extends:
+      file: docker-compose.yml
+      service: mongodb
+
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
+
+  kafka:
+    extends:
+      file: docker-compose.yml
+      service: kafka
+
+  postgres:
+    extends:
+      file: docker-compose.yml
+      service: postgres
+
+  backend:
+    extends:
+      file: docker-compose.yml
+      service: backend
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/fstore_e2e
+      - REDIS_URI=redis://redis:6379/1
+      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/fstore_e2e
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC_PREFIX=e2e_test
+
+  feature-processor:
+    extends:
+      file: docker-compose.yml
+      service: feature-processor
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/fstore_e2e
+      - REDIS_URI=redis://redis:6379/1
+      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/fstore_e2e
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC_PREFIX=e2e_test
