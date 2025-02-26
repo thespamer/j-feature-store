@@ -1,79 +1,107 @@
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional
+"""API endpoints para features."""
 from datetime import datetime
+from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Depends, status
 from app.models.feature import Feature, FeatureValue, FeatureCreate
+from app.services.feature_store import FeatureStore, FeatureNotFoundError, ValidationError
 from app.core.store import get_feature_store
 
 router = APIRouter()
 
-@router.post("/", response_model=Feature)
-async def create_feature(feature_data: FeatureCreate):
-    """
-    Cria uma nova feature
-    """
-    try:
-        feature_store = get_feature_store()
-        if feature_store is None:
-            raise HTTPException(status_code=500, detail="Feature store not initialized")
-        feature = Feature(**feature_data.dict())
-        return await feature_store.create_feature(feature)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+def get_store() -> FeatureStore:
+    """Dependência para obter a instância do FeatureStore."""
+    return get_feature_store()
 
-@router.get("/", response_model=List[Feature])
-async def list_features(entity_id: Optional[str] = Query(None)):
-    """
-    Lista todas as features
-    """
+@router.post("/features/", response_model=Feature, status_code=status.HTTP_201_CREATED)
+async def create_feature(feature: FeatureCreate, store: FeatureStore = Depends(get_store)):
+    """Cria uma nova feature."""
     try:
-        feature_store = get_feature_store()
-        if feature_store is None:
-            raise HTTPException(status_code=500, detail="Feature store not initialized")
-        return await feature_store.list_features(entity_id)
+        return await store.create_feature(feature)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erro de validação: {str(e)}"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno ao criar feature: {str(e)}"
+        )
 
-@router.get("/{feature_id}", response_model=Feature)
-async def get_feature(feature_id: str):
-    """
-    Retorna uma feature específica
-    """
+@router.get("/features/", response_model=List[Feature])
+async def list_features(store: FeatureStore = Depends(get_store)):
+    """Lista todas as features."""
     try:
-        feature_store = get_feature_store()
-        if feature_store is None:
-            raise HTTPException(status_code=500, detail="Feature store not initialized")
-        feature = await feature_store.get_feature(feature_id)
+        return await store.list_features()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao listar features: {str(e)}"
+        )
+
+@router.get("/features/{feature_id}", response_model=Feature)
+async def get_feature(feature_id: str, store: FeatureStore = Depends(get_store)):
+    """Obtém uma feature pelo ID."""
+    try:
+        feature = await store.get_feature(feature_id)
         if not feature:
-            raise HTTPException(status_code=404, detail="Feature not found")
+            raise FeatureNotFoundError(f"Feature {feature_id} não encontrada")
         return feature
+    except FeatureNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar feature: {str(e)}"
+        )
 
-@router.post("/{feature_id}/values", response_model=FeatureValue)
-async def store_feature_value(feature_id: str, value: FeatureValue):
-    """
-    Armazena um valor de feature
-    """
+@router.delete("/features/{feature_id}")
+async def delete_feature(feature_id: str, store: FeatureStore = Depends(get_store)):
+    """Remove uma feature."""
     try:
-        feature_store = get_feature_store()
-        if feature_store is None:
-            raise HTTPException(status_code=500, detail="Feature store not initialized")
-        return await feature_store.store_feature_value(feature_id, value)
+        await store.delete_feature(feature_id)
+        return {"message": "Feature removida com sucesso"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao remover feature: {str(e)}"
+        )
 
-@router.get("/{feature_id}/values/{entity_id}", response_model=FeatureValue)
-async def get_feature_value(feature_id: str, entity_id: str):
-    """
-    Retorna o último valor de uma feature para uma entidade
-    """
+@router.post("/features/{feature_id}/values", response_model=FeatureValue)
+async def insert_feature_value(
+    feature_id: str,
+    value: FeatureValue,
+    store: FeatureStore = Depends(get_store)
+):
+    """Insere um valor para uma feature."""
     try:
-        feature_store = get_feature_store()
-        if feature_store is None:
-            raise HTTPException(status_code=500, detail="Feature store not initialized")
-        value = await feature_store.get_feature_value(feature_id, entity_id)
-        if not value:
-            raise HTTPException(status_code=404, detail="Feature value not found")
-        return value
+        return await store.insert_feature_value(feature_id, value)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erro de validação: {str(e)}"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao inserir valor de feature: {str(e)}"
+        )
+
+@router.get("/features/{feature_id}/values", response_model=List[FeatureValue])
+async def get_feature_values(
+    feature_id: str,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    store: FeatureStore = Depends(get_store)
+):
+    """Obtém valores de uma feature."""
+    try:
+        return await store.get_feature_values(feature_id, start_time, end_time)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar valores de feature: {str(e)}"
+        )

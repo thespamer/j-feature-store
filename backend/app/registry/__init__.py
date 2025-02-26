@@ -1,4 +1,5 @@
-from .registry import FeatureRegistry
-from .version import FeatureVersion
+"""Módulo de registro de features."""
 
-__all__ = ['FeatureRegistry', 'FeatureVersion']
+from .feature_registry import FeatureRegistry
+
+__all__ = ['FeatureRegistry']

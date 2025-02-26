@@ -1,14 +1,80 @@
 version: '3.8'
 
 services:
-  feature-processor-test:
+  test-mongodb:
+    image: mongo:latest
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: test_db
+
+  test-redis:
+    image: redis:latest
+    ports:
+      - "6380:6379"
+
+  test-kafka:
+    image: confluentinc/cp-kafka:latest
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: test-zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://test-kafka:29092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - test-zookeeper
+
+  test-zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    ports:
+      - "2182:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  test-postgres:
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+
+  test-app:
     build:
-      context: ./spark
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      MONGODB_URI: mongodb://test-mongodb:27017/test_db
+      REDIS_URI: redis://test-redis:6379/1
+      KAFKA_BOOTSTRAP_SERVERS: test-kafka:29092
+      POSTGRES_URI: postgresql://test_user:test_password@test-postgres:5432/test_db
+      TESTING: "true"
+    depends_on:
+      - test-mongodb
+      - test-redis
+      - test-kafka
+      - test-postgres
+
+  e2e-tests:
+    build:
+      context: .
       dockerfile: Dockerfile.test
     environment:
-      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/fstore
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - TESTING=true
+      API_URL: http://test-app:8000
+      MONGODB_URI: mongodb://test-mongodb:27017/test_db
+      REDIS_URI: redis://test-redis:6379/1
+      KAFKA_BOOTSTRAP_SERVERS: test-kafka:29092
+      POSTGRES_URI: postgresql://test_user:test_password@test-postgres:5432/test_db
+      PYTHONPATH: /app
+    volumes:
+      - ./backend/tests:/app/tests
+      - ./test-results:/app/test-results
     depends_on:
-      - kafka
-      - postgres
+      - test-app

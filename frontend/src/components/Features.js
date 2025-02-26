@@ -16,7 +16,7 @@ import {
   InputLabel,
 } from '@mui/material';
 
-const API_URL = 'http://backend:8000/api/v1';
+const API_URL = 'http://localhost:8000/api/v1';
 
 const Features = () => {
   const [features, setFeatures] = useState([]);

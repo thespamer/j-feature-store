@@ -2,6 +2,14 @@ FROM python:3.8-slim
 
 WORKDIR /app
 
+# Instalar dependências do sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libc-dev \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install pytest pytest-asyncio httpx pytest-env

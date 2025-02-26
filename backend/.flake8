@@ -1,0 +1,13 @@
+[flake8]
+max-line-length = 100
+extend-ignore = E203, W503
+exclude = .git,__pycache__,build,dist
+max-complexity = 10
+per-file-ignores =
+    __init__.py:F401
+    tests/*:S101,S106
+select = C,E,F,W,B,B950
+ignore = E501,W503
+count = True
+statistics = True
+show-source = True

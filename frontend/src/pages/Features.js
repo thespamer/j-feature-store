@@ -3,11 +3,11 @@ import {
   Box, 
   Typography, 
   Grid,
-  CircularProgress
+  CircularProgress,
+  Button
 } from '@mui/material';
 import FeatureCard from '../components/FeatureCard';
-
-const API_URL = 'http://localhost:8000/api/v1';
+import config from '../config';
 
 const Features = () => {
   const [features, setFeatures] = useState([]);
@@ -22,9 +22,8 @@ const Features = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching features from:', `${API_URL}/features/`);
       
-      const response = await fetch(`${API_URL}/features/`, {
+      const response = await fetch(`${config.API_URL}/features/`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -39,16 +38,14 @@ const Features = () => {
       }
       
       const data = await response.json();
-      console.log('Raw response:', data);
-      
-      // Garantir que features é um array
       const featuresArray = Array.isArray(data) ? data : [];
-      console.log('Processed features:', featuresArray);
-      
       setFeatures(featuresArray);
     } catch (error) {
       console.error('Error fetching features:', error);
-      setError(error.message);
+      const errorMessage = error.message.includes('net::ERR_CONNECTION_RESET')
+        ? 'Não foi possível conectar ao servidor. Por favor, verifique se o backend está rodando e tente novamente.'
+        : error.message || 'Erro ao carregar features. Por favor, tente novamente.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -64,8 +61,15 @@ const Features = () => {
 
   if (error) {
     return (
-      <Box p={3}>
-        <Typography color="error">Error: {error}</Typography>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Typography color="error" variant="h6" component="div">
+          {error}
+          <Box mt={2}>
+            <Button onClick={fetchFeatures} className="retry-button">
+              Tentar Novamente
+            </Button>
+          </Box>
+        </Typography>
       </Box>
     );
   }

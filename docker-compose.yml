@@ -5,14 +5,20 @@ services:
     build: ./frontend
     ports:
       - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:8000/api/v1
     depends_on:
-      - backend
+      backend:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - feature-store-network
 
   backend:
     build:
@@ -20,45 +26,57 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    depends_on:
-      - mongodb
-      - redis
-      - postgres
-      - feature-processor
-      - kafka
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017/fstore
-      - REDIS_URI=redis://redis:6379/0
-      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/fstore
+      - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_DB=feature_store
+      - REDIS_URL=redis://redis:6379/0
+      - POSTGRES_URL=postgresql://postgres:postgres@postgres:5432/feature_store
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/monitoring/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - feature-store-network
 
   backend-test:
     build:
       context: ./backend
       dockerfile: Dockerfile.test
     depends_on:
-      - mongodb
-      - redis
-      - kafka
-      - postgres
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017/fstore
-      - REDIS_URI=redis://redis:6379/0
-      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/fstore
+      - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_DB=feature_store
+      - REDIS_URL=redis://redis:6379/0
+      - POSTGRES_URL=postgresql://postgres:postgres@postgres:5432/feature_store
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - TESTING=true
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/monitoring/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - feature-store-network
 
   mongodb:
     image: mongo:latest
@@ -66,23 +84,30 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+      - ./backend/app/db/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
-      timeout: 10s
+      timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - feature-store-network
 
   redis:
     image: redis:latest
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
-      timeout: 10s
+      timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - feature-store-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -97,6 +122,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - feature-store-network
 
   kafka:
     image: confluentinc/cp-kafka:7.0.0
@@ -121,24 +148,25 @@ services:
       resources:
         limits:
           memory: 1G
+    networks:
+      - feature-store-network
 
   postgres:
     image: postgres:13
     environment:
-      - POSTGRES_DB=fstore
+      - POSTGRES_DB=feature_store
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     volumes:
-      - ./init.sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 512M
+      start_period: 10s
+    networks:
+      - feature-store-network
 
   feature-processor:
     build:
@@ -147,13 +175,13 @@ services:
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=fstore
+      - POSTGRES_DB=feature_store
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_started
       postgres:
         condition: service_healthy
     healthcheck:
@@ -168,6 +196,8 @@ services:
           memory: 2G
         reservations:
           memory: 1G
+    networks:
+      - feature-store-network
 
   prometheus:
     image: prom/prometheus:latest
@@ -189,14 +219,17 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - feature-store-network
 
   demo-data:
     build:
       context: .
       dockerfile: demo/Dockerfile
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017/fstore
-      - REDIS_URI=redis://redis:6379/0
+      - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_DB=feature_store
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       - mongodb
       - redis
@@ -206,6 +239,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - feature-store-network
 
 volumes:
   mongodb_data:
@@ -214,3 +249,7 @@ volumes:
   prometheus_data:
   kafka_data:
   zookeeper_data:
+
+networks:
+  feature-store-network:
+    driver: bridge

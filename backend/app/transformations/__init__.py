@@ -1,5 +1,13 @@
-from .base import FeatureTransformer
-from .numeric import NumericTransformer
-from .categorical import CategoricalTransformer
+"""Módulo de transformações de features."""
 
-__all__ = ['FeatureTransformer', 'NumericTransformer', 'CategoricalTransformer']
+from .base import BaseTransformation
+from .numeric import NumericTransformation
+from .categorical import CategoricalTransformation
+from .temporal import TemporalTransformation
+
+__all__ = [
+    'BaseTransformation',
+    'NumericTransformation',
+    'CategoricalTransformation',
+    'TemporalTransformation'
+]

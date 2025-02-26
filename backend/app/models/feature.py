@@ -1,40 +1,62 @@
-from pydantic import BaseModel
-from typing import List, Optional
+"""Módulo de modelos de feature."""
 from datetime import datetime
+from typing import Dict, Any, Optional, List
+from pydantic import BaseModel, Field
 
-class FeatureGroup(BaseModel):
-    id: Optional[str] = None
-    name: str
-    description: str
-    entity_id: str
-    tags: List[str] = []
-    frequency: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    features: List[str] = []
-    entity_type: str
+class ValidationRules(BaseModel):
+    """Regras de validação para features."""
+    allow_null: bool = True
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    categorical_values: Optional[List[str]] = None
+    regex_pattern: Optional[str] = None
+    min_date: Optional[datetime] = None
+    max_date: Optional[datetime] = None
+
+class TransformationConfig(BaseModel):
+    """Configuração de transformação para features."""
+    type: str
+    params: Optional[Dict[str, Any]] = None
 
 class Feature(BaseModel):
-    id: Optional[str] = None
+    """Modelo de feature."""
+    id: str
     name: str
-    description: str
-    feature_group_id: str
     type: str
-    entity_id: str
-    tags: List[str] = []
-    created_at: Optional[datetime] = None
+    description: Optional[str] = None
+    validation_rules: Optional[ValidationRules] = None
+    transformation: Optional[TransformationConfig] = None
+    metadata: Optional[Dict[str, Any]] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
-
-class FeatureValue(BaseModel):
-    feature_id: str
-    entity_id: str
-    value: float
-    timestamp: Optional[datetime] = None
+    version: str = "1.0.0"
+    status: str = "active"
+    dependencies: Optional[List[str]] = None
 
 class FeatureCreate(BaseModel):
+    """Modelo para criação de feature."""
     name: str
-    description: str
-    feature_group_id: str
     type: str
-    entity_id: str
-    tags: List[str] = []
+    description: Optional[str] = None
+    validation_rules: Optional[ValidationRules] = None
+    transformation: Optional[TransformationConfig] = None
+    metadata: Optional[Dict[str, Any]] = None
+    dependencies: Optional[List[str]] = None
+    version: str = "1.0.0"
+
+class FeatureUpdate(BaseModel):
+    """Modelo para atualização de feature."""
+    description: Optional[str] = None
+    validation_rules: Optional[ValidationRules] = None
+    transformation: Optional[TransformationConfig] = None
+    metadata: Optional[Dict[str, Any]] = None
+    dependencies: Optional[List[str]] = None
+    version: Optional[str] = None
+
+class FeatureValue(BaseModel):
+    """Modelo de valor de feature."""
+    id: Optional[str] = None
+    feature_id: str
+    value: Any
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    metadata: Optional[Dict[str, Any]] = None

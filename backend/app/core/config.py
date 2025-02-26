@@ -1,22 +1,39 @@
-from pydantic import BaseModel
-from typing import Optional
+"""Configuration settings for the Feature Store."""
+from pydantic_settings import BaseSettings
 
-class Settings(BaseModel):
-    PROJECT_NAME: str = "Feature Store API"
-    VERSION: str = "0.1.0"
-    API_V1_STR: str = "/api/v1"
+class Settings(BaseSettings):
+    """Application settings."""
     
+    # MongoDB
     MONGODB_URL: str = "mongodb://mongodb:27017"
-    MONGODB_DB: str = "fstore"
+    MONGODB_DB: str = "feature_store"
     
+    # Redis
     REDIS_URL: str = "redis://redis:6379/0"
     
-    KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
-    KAFKA_TOPIC_PREFIX: str = "feature_store"
+    # Postgres
+    POSTGRES_URL: str = "postgresql://postgres:postgres@postgres:5432/feature_store"
     
-    POSTGRES_SERVER: str = "postgres"
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_DB: str = "fstore"
+    # API
+    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str = "Feature Store"
+    
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    
+    # Security
+    SECRET_KEY: str = "your-super-secret-key"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    
+    # CORS
+    BACKEND_CORS_ORIGINS: list = ["*"]
+    
+    # Performance
+    CACHE_TTL: int = 300  # 5 minutes
+    MAX_CONNECTIONS: int = 10
+    
+    class Config:
+        """Model configuration."""
+        case_sensitive = True
 
 settings = Settings()
