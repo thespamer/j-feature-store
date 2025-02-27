@@ -361,6 +361,32 @@ features = client.get_online_features(
    - Documente mudanças
    - Mantenha compatibilidade
 
+## Demo App
+
+O projeto inclui uma aplicação de demonstração que ajuda a entender como a Feature Store funciona na prática. A demo está localizada no diretório `demo/` e inclui:
+
+### Funcionalidades da Demo
+- Geração automática de dados de exemplo
+- Criação de um grupo de features "Customer Metrics"
+- Features de demonstração:
+  - `total_purchases`: Total de compras do cliente
+  - `average_ticket`: Ticket médio do cliente
+
+### Como Executar a Demo
+
+```bash
+# Navegue até o diretório demo
+cd demo
+
+# Execute o script de geração de dados
+python generate_data.py
+```
+
+A demo é útil para:
+- Entender como a feature store funciona
+- Ter dados de exemplo para começar a usar o sistema
+- Servir como referência para implementação de novas features
+
 ## Configuração de Desenvolvimento
 
 ### Pré-requisitos
