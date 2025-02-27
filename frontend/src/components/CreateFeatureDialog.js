@@ -1,255 +1,196 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
   Button,
-  FormControl,
-  InputLabel,
+  TextField,
   Select,
   MenuItem,
+  FormControl,
+  InputLabel,
   Box,
-  Alert,
-  Typography,
-  Switch,
-  FormControlLabel
+  Chip,
+  Input,
+  CircularProgress,
 } from '@mui/material';
-import config from '../config';
 
-const CreateFeatureDialog = ({ open, onClose, onFeatureCreated }) => {
+const API_URL = 'http://localhost:8000/api/v1';
+
+const CreateFeatureDialog = ({ open, onClose, feature = null, onSave }) => {
+  const [loading, setLoading] = useState(false);
+  const [groups, setGroups] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    type: 'numerical',
-    entity_id: 'customer_id',
-    validation_rules: {
-      allow_null: false,
-      min_value: null,
-      max_value: null
-    },
-    transformation: {
-      enabled: false,
-      sql_query: '',
-      aggregation_window: '1d'
+    type: 'float',
+    entity_id: '',
+    feature_group_id: '',
+    metadata: {
+      tags: []
     }
   });
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+  useEffect(() => {
+    if (open) {
+      fetchGroups();
+      if (feature) {
+        setFormData({
+          name: feature.name || '',
+          description: feature.description || '',
+          type: feature.type || 'float',
+          entity_id: feature.entity_id || '',
+          feature_group_id: feature.feature_group_id || '',
+          metadata: {
+            tags: feature.metadata?.tags || []
+          }
+        });
+      }
+    }
+  }, [open, feature]);
+
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch(`${API_URL}/feature-groups`);
+      if (!response.ok) throw new Error('Erro ao carregar grupos');
+      const data = await response.json();
+      setGroups(data);
+    } catch (error) {
+      console.error('Error fetching groups:', error);
     }
   };
 
-  const handleTransformationToggle = () => {
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      transformation: {
-        ...prev.transformation,
-        enabled: !prev.transformation.enabled
+      [name]: value
+    }));
+  };
+
+  const handleTagsChange = (e) => {
+    const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
+    setFormData(prev => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        tags
       }
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
+  const handleSubmit = async () => {
     try {
-      const requestBody = {
-        ...formData,
-        metadata: {
-          owner: 'user',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          tags: ['web-ui']
-        }
-      };
-
-      // Remove transformation if not enabled
-      if (!formData.transformation.enabled) {
-        delete requestBody.transformation;
-      }
-
-      const response = await fetch(`${config.API_URL}/features/`, {
-        method: 'POST',
+      setLoading(true);
+      const response = await fetch(`${API_URL}/features${feature ? `/${feature.id}` : ''}`, {
+        method: feature ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error creating feature');
-      }
-
-      const newFeature = await response.json();
-      onFeatureCreated(newFeature);
+      if (!response.ok) throw new Error('Erro ao salvar feature');
+      
+      const savedFeature = await response.json();
+      onSave(savedFeature);
       onClose();
-    } catch (err) {
-      setError(err.message);
+    } catch (error) {
+      console.error('Error saving feature:', error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Create New Feature</DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent>
-          {error && (
-            <Box mb={2}>
-              <Alert severity="error">{error}</Alert>
-            </Box>
-          )}
-          
-          <Box mb={2}>
-            <TextField
-              fullWidth
-              label="Name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              helperText="Feature name (e.g., customer_total_purchases)"
-            />
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        {feature ? 'Editar Feature' : 'Nova Feature'}
+      </DialogTitle>
+      <DialogContent>
+        <Box display="flex" flexDirection="column" gap={2} mt={2}>
+          <TextField
+            name="name"
+            label="Nome"
+            value={formData.name}
+            onChange={handleInputChange}
+            fullWidth
+            required
+          />
+          <TextField
+            name="description"
+            label="Descrição"
+            value={formData.description}
+            onChange={handleInputChange}
+            fullWidth
+            multiline
+            rows={3}
+          />
+          <FormControl fullWidth>
+            <InputLabel>Tipo</InputLabel>
+            <Select
+              name="type"
+              value={formData.type}
+              onChange={handleInputChange}
+              label="Tipo"
+            >
+              <MenuItem value="float">Float</MenuItem>
+              <MenuItem value="int">Integer</MenuItem>
+              <MenuItem value="string">String</MenuItem>
+              <MenuItem value="boolean">Boolean</MenuItem>
+              <MenuItem value="datetime">DateTime</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            name="entity_id"
+            label="Entity ID"
+            value={formData.entity_id}
+            onChange={handleInputChange}
+            fullWidth
+          />
+          <FormControl fullWidth>
+            <InputLabel>Grupo de Features</InputLabel>
+            <Select
+              name="feature_group_id"
+              value={formData.feature_group_id}
+              onChange={handleInputChange}
+              label="Grupo de Features"
+            >
+              <MenuItem value="">Nenhum</MenuItem>
+              {groups.map((group) => (
+                <MenuItem key={group.id} value={group.id}>
+                  {group.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            name="tags"
+            label="Tags (separadas por vírgula)"
+            value={formData.metadata.tags.join(', ')}
+            onChange={handleTagsChange}
+            fullWidth
+          />
+          <Box display="flex" gap={1} flexWrap="wrap">
+            {formData.metadata.tags.map((tag) => (
+              <Chip key={tag} label={tag} size="small" />
+            ))}
           </Box>
-
-          <Box mb={2}>
-            <TextField
-              fullWidth
-              label="Description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              multiline
-              rows={2}
-              required
-              helperText="Detailed description of the feature"
-            />
-          </Box>
-
-          <Box mb={2}>
-            <FormControl fullWidth>
-              <InputLabel>Type</InputLabel>
-              <Select
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                required
-              >
-                <MenuItem value="numerical">Numerical</MenuItem>
-                <MenuItem value="categorical">Categorical</MenuItem>
-                <MenuItem value="temporal">Temporal</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-
-          <Box mb={2}>
-            <TextField
-              fullWidth
-              label="Entity ID"
-              name="entity_id"
-              value={formData.entity_id}
-              onChange={handleChange}
-              required
-              helperText="Entity identifier (e.g., customer_id, product_id)"
-            />
-          </Box>
-
-          <Box mb={2}>
-            <Typography variant="subtitle1" gutterBottom>
-              Transformation
-            </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.transformation.enabled}
-                  onChange={handleTransformationToggle}
-                  name="transformation.enabled"
-                />
-              }
-              label="Enable SQL Transformation"
-            />
-            
-            {formData.transformation.enabled && (
-              <>
-                <Box mt={2}>
-                  <TextField
-                    fullWidth
-                    label="SQL Query"
-                    name="transformation.sql_query"
-                    value={formData.transformation.sql_query}
-                    onChange={handleChange}
-                    multiline
-                    rows={4}
-                    required
-                    helperText={
-                      <span>
-                        SQL transformation query. Example:<br />
-                        SELECT<br />
-                        &nbsp;&nbsp;user_id,<br />
-                        &nbsp;&nbsp;AVG(session_duration) as avg_session_duration<br />
-                        FROM input_data<br />
-                        GROUP BY user_id
-                      </span>
-                    }
-                  />
-                </Box>
-                <Box mt={2}>
-                  <FormControl fullWidth>
-                    <InputLabel>Aggregation Window</InputLabel>
-                    <Select
-                      name="transformation.aggregation_window"
-                      value={formData.transformation.aggregation_window}
-                      onChange={handleChange}
-                      required
-                    >
-                      <MenuItem value="1h">1 Hour</MenuItem>
-                      <MenuItem value="6h">6 Hours</MenuItem>
-                      <MenuItem value="12h">12 Hours</MenuItem>
-                      <MenuItem value="1d">1 Day</MenuItem>
-                      <MenuItem value="7d">7 Days</MenuItem>
-                      <MenuItem value="30d">30 Days</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Box>
-              </>
-            )}
-          </Box>
-        </DialogContent>
-        
-        <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
-            color="primary"
-            disabled={loading}
-          >
-            {loading ? 'Creating...' : 'Create'}
-          </Button>
-        </DialogActions>
-      </form>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} color="inherit">
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          color="primary"
+          disabled={loading || !formData.name}
+        >
+          {loading ? <CircularProgress size={24} /> : 'Salvar'}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 };

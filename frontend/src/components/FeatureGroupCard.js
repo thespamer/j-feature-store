@@ -1,19 +1,24 @@
-import React from 'react';
-import { 
-  Card, 
+import React, { useState } from 'react';
+import {
+  Card,
   CardContent,
   Typography,
+  IconButton,
   Box,
   Chip,
-  IconButton,
   Menu,
-  MenuItem
+  MenuItem,
+  Button,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { format } from 'date-fns';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import FeaturesIcon from '@mui/icons-material/Extension';
+import ManageGroupFeaturesDialog from './ManageGroupFeaturesDialog';
 
-const FeatureGroupCard = ({ group, onEdit, onDelete, onViewFeatures }) => {
-  const [anchorEl, setAnchorEl] = React.useState(null);
+const FeatureGroupCard = ({ group, onEdit, onDelete, onUpdate }) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [manageFeaturesOpen, setManageFeaturesOpen] = useState(false);
 
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -23,85 +28,90 @@ const FeatureGroupCard = ({ group, onEdit, onDelete, onViewFeatures }) => {
     setAnchorEl(null);
   };
 
-  const handleAction = (action) => {
+  const handleEditClick = () => {
     handleMenuClose();
-    switch (action) {
-      case 'edit':
-        onEdit(group);
-        break;
-      case 'delete':
-        onDelete(group);
-        break;
-      case 'viewFeatures':
-        onViewFeatures(group);
-        break;
-      default:
-        break;
-    }
+    onEdit(group);
   };
 
-  if (!group) return null;
+  const handleDeleteClick = () => {
+    handleMenuClose();
+    onDelete(group);
+  };
+
+  const handleManageFeaturesClick = () => {
+    handleMenuClose();
+    setManageFeaturesOpen(true);
+  };
 
   return (
-    <Card>
-      <CardContent>
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-          <Typography variant="h6" gutterBottom>
-            {group.name}
+    <>
+      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ flexGrow: 1 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+            <Typography variant="h6" component="h2" gutterBottom>
+              {group.name}
+            </Typography>
+            <IconButton onClick={handleMenuClick} size="small">
+              <MoreVertIcon />
+            </IconButton>
+          </Box>
+          <Typography color="textSecondary" gutterBottom>
+            {group.description}
           </Typography>
-          <IconButton size="small" onClick={handleMenuClick}>
-            <MoreVertIcon />
-          </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-          >
-            <MenuItem onClick={() => handleAction('edit')}>Edit</MenuItem>
-            <MenuItem onClick={() => handleAction('viewFeatures')}>View Features</MenuItem>
-            <MenuItem onClick={() => handleAction('delete')}>Delete</MenuItem>
-          </Menu>
-        </Box>
-        <Typography variant="body2" color="textSecondary" paragraph>
-          {group.description || 'No description'}
-        </Typography>
-        <Typography variant="body2">
-          Entity Type: {group.entity_type || "Not specified"}
-        </Typography>
-        <Typography variant="body2">
-          Features: {(group.features || []).length}
-        </Typography>
-        <Typography variant="body2">
-          Owner: {group.owner || "Not assigned"}
-        </Typography>
-        <Typography variant="body2">
-          Update Frequency: {group.frequency || "Not specified"}
-        </Typography>
-        <Typography variant="body2">
-          Last Updated: {group.updated_at ? format(new Date(group.updated_at), 'PPpp') : 'Never'}
-        </Typography>
-        <Box mt={2}>
-          <Typography variant="body2" component="span" mr={1}>
-            Status:
-          </Typography>
-          <Chip
-            label={group.status || 'active'}
+          <Box mt={2}>
+            <Typography variant="subtitle2" gutterBottom>
+              Entity Type: {group.entity_type}
+            </Typography>
+            <Typography variant="subtitle2" gutterBottom>
+              Features: {group.features ? group.features.length : 0}
+            </Typography>
+          </Box>
+          {group.tags && group.tags.length > 0 && (
+            <Box mt={2} display="flex" gap={1} flexWrap="wrap">
+              {group.tags.map((tag) => (
+                <Chip key={tag} label={tag} size="small" />
+              ))}
+            </Box>
+          )}
+        </CardContent>
+        <Box p={2} display="flex" justifyContent="flex-end">
+          <Button
+            startIcon={<FeaturesIcon />}
+            onClick={handleManageFeaturesClick}
+            color="primary"
             size="small"
-            color={group.status === 'deprecated' ? 'error' : 'success'}
-          />
+          >
+            Gerenciar Features
+          </Button>
         </Box>
-        <Box mt={2}>
-          {(group.tags || []).map((tag, index) => (
-            <Chip
-              key={index}
-              label={tag}
-              size="small"
-              style={{ margin: '0 4px 4px 0' }}
-            />
-          ))}
-        </Box>
-      </CardContent>
-    </Card>
+      </Card>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleEditClick}>
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          Editar
+        </MenuItem>
+        <MenuItem onClick={handleDeleteClick}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Excluir
+        </MenuItem>
+        <MenuItem onClick={handleManageFeaturesClick}>
+          <FeaturesIcon fontSize="small" sx={{ mr: 1 }} />
+          Gerenciar Features
+        </MenuItem>
+      </Menu>
+
+      <ManageGroupFeaturesDialog
+        open={manageFeaturesOpen}
+        onClose={() => setManageFeaturesOpen(false)}
+        group={group}
+        onUpdate={onUpdate}
+      />
+    </>
   );
 };
 
