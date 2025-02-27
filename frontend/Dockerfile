@@ -3,9 +3,14 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Instalar dependências
+# Instalar dependências em duas etapas
 COPY package*.json ./
-RUN npm install
+
+# Primeira etapa: instalar ajv explicitamente
+RUN npm install ajv@8.12.0
+
+# Segunda etapa: instalar o resto das dependências
+RUN npm install --legacy-peer-deps
 
 # Copiar código fonte
 COPY . .
