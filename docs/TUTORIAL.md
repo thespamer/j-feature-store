@@ -324,10 +324,10 @@ client.create_feature(
 
 ## Recursos Adicionais
 
-- [Documentação Completa](https://docs.j-feature-store.com)
+
 - [GitHub do Projeto](https://github.com/thespamer/j-feature-store)
 - [Exemplos de Código](https://github.com/thespamer/j-feature-store/examples)
-- [Canal no Discord](https://discord.gg/j-feature-store)
+
 
 ## Contribuindo
 
