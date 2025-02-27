@@ -4,15 +4,20 @@ import {
   Typography, 
   Grid,
   CircularProgress,
-  Button
+  Button,
+  Fab,
+  Tooltip
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import FeatureCard from '../components/FeatureCard';
+import CreateFeatureDialog from '../components/CreateFeatureDialog';
 import config from '../config';
 
 const Features = () => {
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchFeatures();
@@ -51,6 +56,10 @@ const Features = () => {
     }
   };
 
+  const handleFeatureCreated = (newFeature) => {
+    setFeatures(prev => [...prev, newFeature]);
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -76,9 +85,21 @@ const Features = () => {
 
   return (
     <Box p={3}>
-      <Typography variant="h4" gutterBottom>
-        Features ({features.length})
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4">
+          Features ({features.length})
+        </Typography>
+        <Tooltip title="Create new feature">
+          <Fab 
+            color="primary" 
+            aria-label="add"
+            onClick={() => setCreateDialogOpen(true)}
+          >
+            <AddIcon />
+          </Fab>
+        </Tooltip>
+      </Box>
+
       <Grid container spacing={3}>
         {features.map((feature) => (
           <Grid item xs={12} sm={6} md={4} key={feature.id}>
@@ -88,11 +109,17 @@ const Features = () => {
         {features.length === 0 && (
           <Grid item xs={12}>
             <Typography variant="body1" color="textSecondary" align="center">
-              No features found
+              No features found. Click the + button to create your first feature.
             </Typography>
           </Grid>
         )}
       </Grid>
+
+      <CreateFeatureDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onFeatureCreated={handleFeatureCreated}
+      />
     </Box>
   );
 };

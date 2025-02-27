@@ -200,166 +200,203 @@ docker-compose up -d
 
 ## Guia de Uso
 
-### 1. Criando Features
+### 1. Criando Features via Interface Web
 
-#### Via Interface Web
-
-1. Acesse http://localhost:3000
-2. Navegue até "Features" > "Nova Feature"
-3. Preencha os campos:
-   - Nome da Feature
+1. Acesse a interface web em http://localhost:3000
+2. Navegue até a página "Features"
+3. Clique no botão "+" para criar uma nova feature
+4. Preencha os campos básicos:
+   - Nome da feature
    - Descrição
-   - Tipo (Numérico, Categórico, Temporal)
-   - Entidade (ex: usuario, produto)
-   - Tags
-   - Fonte de Dados
+   - Tipo (numerical, categorical, temporal)
+   - Entity ID
 
-#### Via API
+5. Para adicionar transformações:
+   - Ative o switch "Enable SQL Transformation"
+   - Insira a query SQL de transformação, exemplo:
+     ```sql
+     SELECT
+       user_id,
+       AVG(session_duration) as avg_session_duration,
+       SUM(page_views) as total_page_views
+     FROM input_data
+     GROUP BY user_id
+     ```
+   - Selecione a janela de agregação (1h, 6h, 12h, 1d, 7d, 30d)
 
+### 2. Criando Features via API
+
+Você pode criar features programaticamente usando a API, seja localmente ou apontando para uma instância remota da feature store.
+
+#### Exemplo Local
 ```python
 import requests
+import json
 
-feature = {
-    "name": "usuario_idade",
-    "description": "Idade do usuário",
-    "feature_type": "NUMERIC",
-    "value_type": "INT",
-    "entity": "usuario",
-    "tags": ["demografia", "basico"],
+# Criar feature com transformação
+feature_definition = {
+    "name": "user_metrics",
+    "description": "Métricas agregadas do usuário",
+    "type": "numerical",
+    "entity_id": "user_id",
+    "transformation": {
+        "sql_query": """
+            SELECT
+                user_id,
+                AVG(session_duration) as avg_session_duration,
+                SUM(page_views) as total_page_views
+            FROM input_data
+            GROUP BY user_id
+        """,
+        "aggregation_window": "1d"
+    }
 }
 
 response = requests.post(
-    "http://localhost:8000/api/features/",
-    json=feature
+    "http://localhost:8000/api/v1/features/",
+    json=feature_definition
 )
+print(response.json())
 ```
 
-### 2. Ingestão de Dados
-
-#### Batch (Arquivos)
-
-1. Formatos suportados:
-   - CSV
-   - Parquet
-   - JSON
-   - SQL Databases
-
+#### Exemplo Remoto
 ```python
-# Exemplo de ingestão via Python
-import pandas as pd
-from fstore.client import FStoreClient
+from j_feature_store import FeatureStoreClient
 
-client = FStoreClient("http://localhost:8000")
-
-# Carregar dados
-df = pd.read_csv("dados_usuarios.csv")
-
-# Registrar features
-client.ingest_batch(
-    entity="usuario",
-    feature_group="demografia",
-    dataframe=df
+# Inicializar cliente
+client = FeatureStoreClient(
+    host="feature-store.seu-dominio.com",  # Endereço da sua feature store
+    port=443,                              # Porta (443 para HTTPS)
+    use_ssl=True,                          # Usar HTTPS
+    api_key="seu-api-key"                  # Chave de API para autenticação
 )
+
+# Criar feature com transformação
+feature = client.create_feature(
+    name="user_metrics",
+    description="Métricas agregadas do usuário",
+    type="numerical",
+    entity_id="user_id",
+    transformation={
+        "sql_query": """
+            SELECT
+                user_id,
+                AVG(session_duration) as avg_session_duration,
+                SUM(page_views) as total_page_views
+            FROM input_data
+            GROUP BY user_id
+        """,
+        "aggregation_window": "1d"
+    }
+)
+
+# Configurar conexão com Kafka para envio de eventos
+client.configure_kafka(
+    bootstrap_servers="kafka.seu-dominio.com:9092",
+    security_protocol="SASL_SSL",
+    sasl_mechanism="PLAIN",
+    sasl_plain_username="seu-usuario",
+    sasl_plain_password="sua-senha"
+)
+
+# Enviar eventos
+client.send_events(
+    topic="feature-events",
+    events=[{
+        "user_id": "user_123",
+        "session_duration": 300,
+        "page_views": 10,
+        "timestamp": "2025-02-27T12:00:00Z"
+    }]
+)
+
+# Consultar valores processados
+values = client.get_feature_values(
+    feature_name="user_metrics",
+    entity_id="user_123",
+    start_time="2025-02-26T00:00:00Z",
+    end_time="2025-02-27T23:59:59Z"
+)
+print(values)
 ```
 
-#### Streaming (Tempo Real)
+Este exemplo mostra como:
+1. Conectar-se a uma feature store remota de forma segura
+2. Criar features com transformações
+3. Configurar conexão segura com Kafka
+4. Enviar eventos e consultar valores
+
+Para usar este exemplo, você precisará:
+1. URL da sua feature store
+2. Chave de API para autenticação
+3. Credenciais do Kafka
+4. Certificados SSL se necessário
+
+### 3. Enviando Dados para Processamento
+
+Após criar a feature, você pode enviar dados para processamento:
 
 ```python
-# Exemplo com Kafka
+# Enviar evento para processamento
 from kafka import KafkaProducer
-import json
 
-producer = KafkaProducer(
-    bootstrap_servers=['localhost:9092'],
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')
-)
+producer = KafkaProducer(bootstrap_servers='localhost:9092')
 
-# Enviar dados
-producer.send('feature_topic', {
-    'entity_key': 'user_123',
-    'feature_name': 'usuario_idade',
-    'value': 25,
-    'timestamp': '2025-02-20T15:45:11Z'
-})
+event = {
+    "user_id": "user_123",
+    "session_duration": 300,
+    "page_views": 10,
+    "timestamp": "2025-02-27T12:00:00Z"
+}
+
+producer.send('feature-events', json.dumps(event).encode())
 ```
 
-### 3. Transformação de Features
+### 4. Consultando Valores de Features
 
-#### SQL
-
-```sql
--- Exemplo de transformação SQL
-SELECT 
-    user_id,
-    AVG(transaction_amount) as avg_transaction_value,
-    COUNT(*) as transaction_count
-FROM transactions
-GROUP BY user_id
-```
-
-#### Python
+Para consultar os valores processados:
 
 ```python
-# Exemplo de transformação Python
-def calculate_features(df):
-    return df.groupby('user_id').agg({
-        'transaction_amount': ['mean', 'count', 'sum']
-    }).reset_index()
-```
-
-### 4. Recuperando Features
-
-#### Para Treino (Offline)
-
-```python
-# Recuperar features para treino
-features = client.get_training_features(
-    entity="usuario",
-    feature_list=["idade", "renda", "cidade"],
-    start_date="2025-01-01",
-    end_date="2025-02-20"
+# Consultar valores da feature
+response = requests.get(
+    "http://localhost:8000/api/v1/features/user_metrics/values/user_123"
 )
+print(response.json())
 ```
 
-#### Para Inferência (Online)
+## Monitoramento com Prometheus
 
-```python
-# Recuperar features em tempo real
-features = client.get_online_features(
-    entity="usuario",
-    entity_keys=["user_123", "user_456"],
-    feature_list=["idade", "renda", "cidade"]
-)
+O projeto utiliza Prometheus para monitoramento de métricas. Para acessar:
+
+1. Inicie os serviços (se ainda não estiverem rodando):
+```bash
+docker-compose up -d
 ```
 
-### 5. Monitoramento
+2. Acesse o Prometheus UI:
+- URL: http://localhost:9090
 
-1. Métricas disponíveis:
-   - Qualidade dos dados
-   - Latência
-   - Feature drift
-   - Cobertura
+### Métricas Disponíveis
+- Feature Processor: http://localhost:9090/targets
+  - Métricas de processamento de features
+  - Performance do processamento
+  - Status dos jobs
 
-2. Acessando métricas:
-   - Dashboard: http://localhost:3000/monitoring
-   - API: http://localhost:8000/api/monitoring/
+- Spark Metrics: http://localhost:9090/targets
+  - Métricas do Spark
+  - Utilização de recursos
+  - Performance dos jobs
 
-### 6. Boas Práticas
+### Queries Úteis
+- Total de features processadas:
+```
+rate(feature_processor_processed_total[5m])
+```
 
-1. **Nomenclatura de Features**:
-   - Use snake_case
-   - Prefixe com a entidade: `usuario_idade`
-   - Seja descritivo: `produto_ultima_compra_dias`
-
-2. **Documentação**:
-   - Descreva cada feature
-   - Adicione tags relevantes
-   - Mantenha metadados atualizados
-
-3. **Versionamento**:
-   - Versione transformações
-   - Documente mudanças
-   - Mantenha compatibilidade
+- Tempo médio de processamento:
+```
+avg_over_time(feature_processor_processing_time_seconds[5m])
+```
 
 ## Demo App
 
