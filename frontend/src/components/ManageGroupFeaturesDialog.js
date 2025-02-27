@@ -9,12 +9,9 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
-  IconButton,
-  Checkbox,
   Typography,
-  CircularProgress,
+  Checkbox,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
 
 const API_URL = 'http://localhost:8000/api/v1';
 
@@ -112,7 +109,9 @@ const ManageGroupFeaturesDialog = ({ open, onClose, group, onUpdate }) => {
           </Typography>
         )}
         {loading ? (
-          <CircularProgress />
+          <Typography color="textSecondary" align="center" sx={{ py: 2 }}>
+            Carregando...
+          </Typography>
         ) : (
           <List>
             {Array.isArray(allFeatures) && allFeatures.map((feature) => (
@@ -134,6 +133,11 @@ const ManageGroupFeaturesDialog = ({ open, onClose, group, onUpdate }) => {
                 </ListItemSecondaryAction>
               </ListItem>
             ))}
+            {Array.isArray(allFeatures) && allFeatures.length === 0 && (
+              <Typography color="textSecondary" align="center" sx={{ py: 2 }}>
+                Nenhuma feature encontrada
+              </Typography>
+            )}
           </List>
         )}
       </DialogContent>
