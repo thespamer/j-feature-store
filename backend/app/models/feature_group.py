@@ -7,6 +7,7 @@ from app.models.feature import Feature, FeatureCreate
 
 class FeatureGroup(BaseModel):
     """Modelo de grupo de features."""
+    id: Optional[str] = None
     name: str
     description: Optional[str] = None
     entity_type: str
@@ -21,7 +22,7 @@ class FeatureGroupCreate(BaseModel):
     name: str
     description: Optional[str] = None
     entity_type: str
-    features: List[FeatureCreate]
+    features: List[str] = []  # Mudando para lista de strings
     metadata: Optional[Dict[str, Any]] = None
 
 class FeatureGroupUpdate(BaseModel):

@@ -27,11 +27,10 @@ const Features = () => {
   const [newFeature, setNewFeature] = useState({
     name: '',
     description: '',
-    data_type: 'float',
+    type: 'float',
     entity_id: '',
     feature_group_id: '',
-    tags: '',
-    metadata: {}
+    metadata: { tags: [] }
   });
   const [newValue, setNewValue] = useState({
     value: '',
@@ -72,7 +71,7 @@ const Features = () => {
         },
         body: JSON.stringify({
           ...newFeature,
-          tags: newFeature.tags.split(',').map(tag => tag.trim())
+          metadata: { ...newFeature.metadata, tags: newFeature.metadata.tags.join(',').split(',').map(tag => tag.trim()) }
         }),
       });
       const data = await response.json();
@@ -81,11 +80,10 @@ const Features = () => {
       setNewFeature({
         name: '',
         description: '',
-        data_type: 'float',
+        type: 'float',
         entity_id: '',
         feature_group_id: '',
-        tags: '',
-        metadata: {}
+        metadata: { tags: [] }
       });
     } catch (error) {
       console.error('Error creating feature:', error);
@@ -127,10 +125,11 @@ const Features = () => {
             <CardContent>
               <Typography variant="h6">{feature.name}</Typography>
               <Typography color="textSecondary">{feature.description}</Typography>
-              <Typography variant="body2">Type: {feature.data_type}</Typography>
-              <Typography variant="body2">Entity ID: {feature.entity_id}</Typography>
+              <Typography variant="body2">Type: {feature.type}</Typography>
+              <Typography variant="body2">Entity ID: {feature.entity_id || "Not specified"}</Typography>
+              <Typography variant="body2">Group ID: {feature.feature_group_id || "Not specified"}</Typography>
               <Box sx={{ mt: 1, mb: 2 }}>
-                {feature.tags.map((tag) => (
+                {(feature.metadata?.tags || []).map((tag) => (
                   <Typography
                     key={tag}
                     component="span"
@@ -206,8 +205,8 @@ const Features = () => {
             margin="dense"
             label="Tags (comma-separated)"
             fullWidth
-            value={newFeature.tags}
-            onChange={(e) => setNewFeature({ ...newFeature, tags: e.target.value })}
+            value={newFeature.metadata.tags.join(',')}
+            onChange={(e) => setNewFeature({ ...newFeature, metadata: { ...newFeature.metadata, tags: e.target.value.split(',').map(tag => tag.trim()) } })}
           />
         </DialogContent>
         <DialogActions>

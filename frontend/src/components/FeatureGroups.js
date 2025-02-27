@@ -72,10 +72,16 @@ const FeatureGroups = () => {
                   {group.description}
                 </Typography>
                 <Typography variant="body2">
-                  Entity ID: {group.entity_id}
+                  ID: {group.id}
+                </Typography>
+                <Typography variant="body2">
+                  Entity Type: {group.entity_type || "Not specified"}
+                </Typography>
+                <Typography variant="body2">
+                  Features: {(group.features || []).length}
                 </Typography>
                 <Box mt={2}>
-                  {group.tags.map((tag, index) => (
+                  {(group.metadata?.tags || []).map((tag, index) => (
                     <Chip
                       key={index}
                       label={tag}

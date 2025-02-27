@@ -32,6 +32,8 @@ class Feature(BaseModel):
     version: str = "1.0.0"
     status: str = "active"
     dependencies: Optional[List[str]] = None
+    entity_id: Optional[str] = None
+    feature_group_id: Optional[str] = None
 
 class FeatureCreate(BaseModel):
     """Modelo para criação de feature."""
@@ -43,6 +45,8 @@ class FeatureCreate(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     dependencies: Optional[List[str]] = None
     version: str = "1.0.0"
+    entity_id: Optional[str] = None
+    feature_group_id: Optional[str] = None
 
 class FeatureUpdate(BaseModel):
     """Modelo para atualização de feature."""

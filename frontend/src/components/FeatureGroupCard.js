@@ -19,11 +19,17 @@ const FeatureGroupCard = ({ group }) => {
         <Typography variant="body2" color="textSecondary" paragraph>
           {group.description || 'No description'}
         </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Entity ID: {group.entity_id || 'Not specified'}
+        <Typography variant="body2">
+          ID: {group.id}
+        </Typography>
+        <Typography variant="body2">
+          Entity Type: {group.entity_type || "Not specified"}
+        </Typography>
+        <Typography variant="body2">
+          Features: {(group.features || []).length}
         </Typography>
         <Box mt={2}>
-          {group.tags && group.tags.map((tag, index) => (
+          {(group.metadata?.tags || []).map((tag, index) => (
             <Chip
               key={index}
               label={tag}

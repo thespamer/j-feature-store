@@ -69,24 +69,39 @@ class FeatureStore:
         """Cria uma nova feature."""
         validate_feature_definition(feature_data.dict())
         
-        feature = Feature(
-            name=feature_data.name,
-            type=feature_data.type,
-            metadata={
-                "owner": "system",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
-                "tags": feature_data.tags,
-                "description": feature_data.description
-            },
-            validation_rules=feature_data.validation_rules,
-            transformation=feature_data.transformation,
-            dependencies=feature_data.dependencies
-        )
+        metadata = {
+            "owner": "system",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        }
+        if feature_data.metadata:
+            metadata.update(feature_data.metadata)
+
+        # Primeiro insere no MongoDB para obter o ID
+        feature_dict = {
+            "name": feature_data.name,
+            "type": feature_data.type,
+            "description": feature_data.description,
+            "metadata": metadata,
+            "validation_rules": feature_data.validation_rules.dict() if feature_data.validation_rules else None,
+            "transformation": feature_data.transformation.dict() if feature_data.transformation else None,
+            "dependencies": feature_data.dependencies,
+            "version": feature_data.version,
+            "entity_id": feature_data.entity_id,
+            "feature_group_id": feature_data.feature_group_id
+        }
         
-        result = await self.db.features.insert_one(feature.dict())
-        feature_dict = feature.dict()
+        result = await self.db.features.insert_one(feature_dict)
         feature_dict["id"] = str(result.inserted_id)
+        
+        # Atualiza a lista de features no grupo
+        if feature_data.feature_group_id:
+            await self.db.feature_groups.update_one(
+                {"_id": ObjectId(feature_data.feature_group_id)},
+                {"$addToSet": {"features": feature_dict["id"]}}
+            )
+        
+        # Agora cria o objeto Feature com o ID
         return Feature(**feature_dict)
 
     async def get_feature(self, feature_id: str) -> Optional[Feature]:
@@ -122,20 +137,28 @@ class FeatureStore:
 
     async def create_feature_group(self, group_data: FeatureGroupCreate) -> FeatureGroup:
         """Cria um novo grupo de features."""
-        group = FeatureGroup(
-            name=group_data.name,
-            description=group_data.description,
-            entity_type=group_data.entity_type,
-            features=group_data.features,
-            tags=group_data.tags,
-            frequency=group_data.frequency,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
+        metadata = {
+            "owner": "system",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        }
+        if group_data.metadata:
+            metadata.update(group_data.metadata)
+
+        group_dict = {
+            "name": group_data.name,
+            "description": group_data.description,
+            "entity_type": group_data.entity_type,
+            "features": group_data.features,
+            "metadata": metadata,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "version": 1
+        }
         
-        result = await self.db.feature_groups.insert_one(group.dict())
-        group_dict = group.dict()
+        result = await self.db.feature_groups.insert_one(group_dict)
         group_dict["id"] = str(result.inserted_id)
+        
         return FeatureGroup(**group_dict)
 
     async def get_feature_group(self, group_id: str) -> Optional[FeatureGroup]:
@@ -147,10 +170,15 @@ class FeatureStore:
 
     async def list_feature_groups(self) -> List[FeatureGroup]:
         """Lista todos os grupos de features."""
-        groups = []
-        async for group_data in self.db.feature_groups.find():
-            groups.append(FeatureGroup(**self._convert_mongodb_doc(group_data)))
-        return groups
+        try:
+            groups = []
+            async for group_data in self.db.feature_groups.find():
+                converted_data = self._convert_mongodb_doc(group_data)
+                groups.append(FeatureGroup(**converted_data))
+            return groups
+        except Exception as e:
+            print("Erro ao listar grupos de features:", str(e))
+            raise
 
     async def delete_feature_group(self, group_id: str) -> None:
         """Remove um grupo de features."""
