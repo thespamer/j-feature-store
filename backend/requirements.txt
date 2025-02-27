@@ -25,6 +25,7 @@ opentelemetry-instrumentation-fastapi>=0.43b0
 # Segurança
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+cryptography>=40.0.0
 
 # Cache e Rate Limiting
 fastapi-limiter>=0.1.5
@@ -41,3 +42,4 @@ isort>=5.13.0
 pytest-benchmark>=4.0.0
 locust>=2.24.0
 faker>=22.0.0
+kafka-python==2.0.2

@@ -7,7 +7,7 @@ from redis.asyncio import Redis
 from bson import ObjectId
 
 from app.models.feature import Feature, FeatureValue, FeatureCreate
-from app.models.feature_group import FeatureGroup, FeatureGroupCreate
+from app.models.feature_group import FeatureGroup, FeatureGroupCreate, FeatureGroupUpdate
 from app.registry.validation import validate_feature_definition, validate_feature_value
 from app.transformations.base import BaseTransformation
 from app.transformations.numeric import NumericTransformation
@@ -167,6 +167,91 @@ class FeatureStore:
         if group_data:
             return FeatureGroup(**self._convert_mongodb_doc(group_data))
         return None
+
+    async def list_feature_groups(
+        self,
+        skip: int = 0,
+        limit: int = 10,
+        entity_type: Optional[str] = None,
+        tag: Optional[str] = None,
+        status: Optional[str] = None
+    ) -> List[FeatureGroup]:
+        """Lista grupos de features com filtros."""
+        query = {}
+        if entity_type:
+            query["entity_type"] = entity_type
+        if tag:
+            query["tags"] = tag
+        if status:
+            query["status"] = status
+
+        cursor = self.db.feature_groups.find(query).skip(skip).limit(limit)
+        groups = []
+        async for doc in cursor:
+            groups.append(self._convert_mongodb_doc(doc))
+        return groups
+
+    async def update_feature_group(
+        self,
+        group_id: str,
+        group_update: FeatureGroupUpdate
+    ) -> Optional[FeatureGroup]:
+        """Atualiza um grupo de features."""
+        update_data = group_update.dict(exclude_unset=True)
+        if update_data:
+            update_data["updated_at"] = datetime.utcnow()
+            result = await self.db.feature_groups.find_one_and_update(
+                {"_id": ObjectId(group_id)},
+                {"$set": update_data},
+                return_document=ReturnDocument.AFTER
+            )
+            if result:
+                return self._convert_mongodb_doc(result)
+        return None
+
+    async def get_features_by_group(self, group_id: str) -> List[Feature]:
+        """Obtém todas as features de um grupo."""
+        group = await self.get_feature_group(group_id)
+        if not group:
+            return []
+        
+        features = []
+        for feature_id in group.features:
+            feature = await self.get_feature(feature_id)
+            if feature:
+                features.append(feature)
+        return features
+
+    async def get_feature_group_statistics(self, group_id: str) -> Dict[str, Any]:
+        """Obtém estatísticas agregadas do grupo de features."""
+        features = await self.get_features_by_group(group_id)
+        
+        stats = {
+            "total_features": len(features),
+            "feature_types": {},
+            "update_frequency": {},
+            "last_updated": None,
+            "completeness": 0.0,
+            "quality_score": 0.0
+        }
+
+        for feature in features:
+            # Contagem por tipo
+            stats["feature_types"][feature.type] = stats["feature_types"].get(feature.type, 0) + 1
+            
+            # Última atualização
+            if feature.updated_at:
+                if not stats["last_updated"] or feature.updated_at > stats["last_updated"]:
+                    stats["last_updated"] = feature.updated_at
+
+            # Calcular qualidade e completude
+            if feature.validation_rules:
+                stats["quality_score"] += 1
+            
+        if features:
+            stats["quality_score"] = (stats["quality_score"] / len(features)) * 100
+            
+        return stats
 
     async def list_feature_groups(self) -> List[FeatureGroup]:
         """Lista todos os grupos de features."""
