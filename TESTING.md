@@ -110,6 +110,31 @@ Localizados em `backend/tests/performance/`
 - Benchmarks de operações
 - Monitoramento de recursos
 
+### 5. Testes E2E
+
+Existem dois conjuntos de testes E2E no projeto, cada um com seu propósito específico:
+
+#### Backend E2E (`backend/tests/e2e/`)
+- **Foco**: Testa o backend de forma isolada e sua infraestrutura interna
+- **Características**:
+  - Testes mais abrangentes e detalhados
+  - Testa múltiplos cenários (workflow completo, processamento em batch, serving)
+  - Integração direta com Redis, MongoDB e Kafka
+  - Inclui limpeza de dados e verificação de cache
+  - Usa testes síncronos
+  - Possui mecanismos de espera para serviços
+  - Configuração mais complexa com conexões diretas aos serviços
+
+#### Sistema E2E (`e2e/tests/`)
+- **Foco**: Testa o fluxo completo da aplicação do ponto de vista do usuário
+- **Características**:
+  - Testes mais focados no fluxo principal do usuário
+  - Usa testes assíncronos (pytest.mark.asyncio)
+  - Mais simples e direto
+  - Comunicação principalmente via API REST
+  - Configuração mais simples
+  - Foca em dois casos principais: fluxo completo de features e monitoramento
+
 ## Executando os Testes
 
 ### Script Automatizado
