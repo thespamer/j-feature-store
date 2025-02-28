@@ -12,8 +12,13 @@ import {
   MenuItem,
   Box,
   Chip,
-  Input
+  Input,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Typography,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const CreateFeatureGroupDialog = ({ open, onClose, onSubmit, initialData = null }) => {
   const [formData, setFormData] = useState(initialData || {
@@ -24,16 +29,38 @@ const CreateFeatureGroupDialog = ({ open, onClose, onSubmit, initialData = null 
     frequency: '',
     owner: '',
     offline_enabled: true,
-    online_enabled: true
+    online_enabled: true,
+    transformation: {
+      type: 'sql',
+      params: {
+        query: '',
+        features: []
+      }
+    }
   });
 
   const [tagInput, setTagInput] = useState('');
+  const [featureInput, setFeatureInput] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleTransformationChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      transformation: {
+        ...prev.transformation,
+        params: {
+          ...prev.transformation.params,
+          [name]: value
+        }
+      }
     }));
   };
 
@@ -51,10 +78,43 @@ const CreateFeatureGroupDialog = ({ open, onClose, onSubmit, initialData = null 
     }
   };
 
+  const handleFeatureInputKeyDown = (e) => {
+    if (e.key === 'Enter' && featureInput) {
+      e.preventDefault();
+      const newFeature = featureInput.trim();
+      if (newFeature && !formData.transformation.params.features.includes(newFeature)) {
+        setFormData(prev => ({
+          ...prev,
+          transformation: {
+            ...prev.transformation,
+            params: {
+              ...prev.transformation.params,
+              features: [...prev.transformation.params.features, newFeature]
+            }
+          }
+        }));
+      }
+      setFeatureInput('');
+    }
+  };
+
   const handleDeleteTag = (tagToDelete) => {
     setFormData(prev => ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToDelete)
+    }));
+  };
+
+  const handleDeleteFeature = (featureToDelete) => {
+    setFormData(prev => ({
+      ...prev,
+      transformation: {
+        ...prev.transformation,
+        params: {
+          ...prev.transformation.params,
+          features: prev.transformation.params.features.filter(f => f !== featureToDelete)
+        }
+      }
     }));
   };
 
@@ -103,11 +163,11 @@ const CreateFeatureGroupDialog = ({ open, onClose, onSubmit, initialData = null 
               onChange={handleChange}
               label="Update Frequency"
             >
-              <MenuItem value="hourly">Hourly</MenuItem>
+              <MenuItem value="">None</MenuItem>
               <MenuItem value="daily">Daily</MenuItem>
+              <MenuItem value="hourly">Hourly</MenuItem>
               <MenuItem value="weekly">Weekly</MenuItem>
               <MenuItem value="monthly">Monthly</MenuItem>
-              <MenuItem value="on_demand">On Demand</MenuItem>
             </Select>
           </FormControl>
           <TextField
@@ -124,19 +184,57 @@ const CreateFeatureGroupDialog = ({ open, onClose, onSubmit, initialData = null 
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleTagInputKeyDown}
               fullWidth
-              helperText="Press Enter to add tags"
+              placeholder="Press Enter to add tag"
             />
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-              {formData.tags.map((tag, index) => (
+              {formData.tags.map((tag) => (
                 <Chip
-                  key={index}
+                  key={tag}
                   label={tag}
                   onDelete={() => handleDeleteTag(tag)}
-                  size="small"
                 />
               ))}
             </Box>
           </Box>
+
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Transformação SQL</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box display="flex" flexDirection="column" gap={2}>
+                <TextField
+                  name="query"
+                  label="Query SQL"
+                  value={formData.transformation.params.query}
+                  onChange={handleTransformationChange}
+                  fullWidth
+                  multiline
+                  rows={5}
+                />
+                <Box>
+                  <TextField
+                    label="Add Features"
+                    value={featureInput}
+                    onChange={(e) => setFeatureInput(e.target.value)}
+                    onKeyDown={handleFeatureInputKeyDown}
+                    fullWidth
+                    placeholder="Press Enter to add feature"
+                    helperText="Nome das colunas que serão usadas como features"
+                  />
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                    {formData.transformation.params.features.map((feature) => (
+                      <Chip
+                        key={feature}
+                        label={feature}
+                        onDelete={() => handleDeleteFeature(feature)}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
         </Box>
       </DialogContent>
       <DialogActions>

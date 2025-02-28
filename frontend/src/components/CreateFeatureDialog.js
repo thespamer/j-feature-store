@@ -14,7 +14,12 @@ import {
   Chip,
   Input,
   CircularProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Typography,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const API_URL = 'http://localhost:8000/api/v1';
 
@@ -29,6 +34,13 @@ const CreateFeatureDialog = ({ open, onClose, feature = null, onSave }) => {
     feature_group_id: '',
     metadata: {
       tags: []
+    },
+    transformation: {
+      type: 'sql',
+      params: {
+        query: '',
+        output_column: ''
+      }
     }
   });
 
@@ -44,6 +56,13 @@ const CreateFeatureDialog = ({ open, onClose, feature = null, onSave }) => {
           feature_group_id: feature.feature_group_id || '',
           metadata: {
             tags: feature.metadata?.tags || []
+          },
+          transformation: feature.transformation || {
+            type: 'sql',
+            params: {
+              query: '',
+              output_column: ''
+            }
           }
         });
       }
@@ -66,6 +85,20 @@ const CreateFeatureDialog = ({ open, onClose, feature = null, onSave }) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleTransformationChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      transformation: {
+        ...prev.transformation,
+        params: {
+          ...prev.transformation.params,
+          [name]: value
+        }
+      }
     }));
   };
 
@@ -177,6 +210,34 @@ const CreateFeatureDialog = ({ open, onClose, feature = null, onSave }) => {
               <Chip key={tag} label={tag} size="small" />
             ))}
           </Box>
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Transformação SQL</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box display="flex" flexDirection="column" gap={2}>
+                <TextField
+                  name="query"
+                  label="Query SQL"
+                  value={formData.transformation.params.query}
+                  onChange={handleTransformationChange}
+                  fullWidth
+                  multiline
+                  rows={5}
+                  placeholder="SELECT ..."
+                />
+                <TextField
+                  name="output_column"
+                  label="Coluna de Saída"
+                  value={formData.transformation.params.output_column}
+                  onChange={handleTransformationChange}
+                  fullWidth
+                  placeholder="Nome da coluna que será usada como valor da feature"
+                  helperText="Especifique qual coluna do resultado da query será usada como valor da feature"
+                />
+              </Box>
+            </AccordionDetails>
+          </Accordion>
         </Box>
       </DialogContent>
       <DialogActions>
