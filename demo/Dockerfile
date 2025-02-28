@@ -2,16 +2,22 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Copiar arquivos necessários
-COPY demo/generate_data.py .
-COPY demo/requirements.txt .
+# Instalar dependências do sistema
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Instalar dependências
+# Copiar requirements e instalar dependências Python
+COPY demo/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Definir variáveis de ambiente
-ENV MONGODB_URI=mongodb://mongodb:27017/fstore
-ENV REDIS_URI=redis://redis:6379/0
+# Criar diretórios necessários
+RUN mkdir -p /app/data/transformations /app/data/pipelines /app/transformations /app/pipelines
 
-# Comando para executar a geração de dados
-CMD ["python3", "generate_data.py"]
+# Copiar arquivos de demonstração
+COPY demo/transformations /app/transformations/
+COPY demo/pipelines /app/pipelines/
+COPY demo/generate_data.py .
+
+# Comando para iniciar o script
+CMD ["python", "generate_data.py"]

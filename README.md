@@ -364,6 +364,117 @@ response = requests.get(
 print(response.json())
 ```
 
+## Feature Pipelines
+
+O Feature Store suporta a criação e gerenciamento de pipelines para computação e atualização automática de features.
+
+### Tipos de Transformação
+
+- **SQL**: Execute queries SQL para computar features
+- **Python**: Use código Python para transformações customizadas
+- **Pandas**: Transformações baseadas em DataFrames
+
+### Agendamento
+
+Os pipelines podem ser agendados com diferentes intervalos:
+- Horário
+- Diário
+- Semanal
+- Mensal
+- Custom (usando expressões cron)
+
+### Exemplo de Uso
+
+```python
+# Criar um pipeline para métricas diárias de cliente
+pipeline_config = PipelineConfig(
+    transformation_type="sql",
+    source_query="""
+        SELECT 
+            customer_id,
+            COUNT(*) as total_purchases,
+            AVG(amount) as avg_ticket
+        FROM orders 
+        WHERE created_at >= NOW() - INTERVAL '1 day'
+        GROUP BY customer_id
+    """,
+    schedule_interval="daily"
+)
+
+pipeline = await pipeline_service.create_pipeline(
+    name="daily_customer_metrics",
+    feature_group_id="customer_metrics_group",
+    config=pipeline_config
+)
+```
+
+### API Endpoints
+
+- `POST /api/v1/pipelines`: Criar novo pipeline
+- `GET /api/v1/pipelines`: Listar pipelines
+- `GET /api/v1/pipelines/{id}`: Obter pipeline específico
+- `POST /api/v1/pipelines/{id}/execute`: Executar pipeline manualmente
+
+## Point-in-Time Correctness
+
+O Feature Store implementa point-in-time correctness para garantir que não haja data leakage durante o treinamento de modelos.
+
+### O que é Point-in-Time Correctness?
+
+Point-in-time correctness garante que, ao criar datasets de treinamento, apenas dados que estariam disponíveis no momento do evento sejam utilizados. Isso evita:
+- Data leakage
+- Overfitting
+- Avaliações irrealistas de performance do modelo
+
+### Como Funciona
+
+1. Para cada evento no dataset de treinamento:
+   - Identifica o timestamp do evento
+   - Recupera apenas features calculadas antes desse timestamp
+   - Garante que dados futuros não "vazem" para o passado
+
+2. Exemplo:
+   ```
+   Evento: Compra em 2025-01-01 10:00
+   Feature: Média móvel de compras (últimos 30 dias)
+   ✅ Usa dados até 2025-01-01 10:00
+   ❌ Não usa dados após 2025-01-01 10:00
+   ```
+
+### Exemplo de Uso
+
+```python
+import pandas as pd
+from datetime import datetime
+
+# DataFrame com eventos de treinamento
+events_df = pd.DataFrame({
+    "customer_id": ["001", "002", "003"],
+    "timestamp": [
+        "2025-01-01 10:00:00",
+        "2025-01-02 15:30:00",
+        "2025-01-03 09:15:00"
+    ],
+    "target": [1, 0, 1]
+})
+
+# Criar dataset de treinamento com point-in-time correctness
+training_data = await feature_store.get_training_dataset(
+    feature_group_id="customer_metrics_group",
+    start_time=datetime(2025, 1, 1),
+    end_time=datetime(2025, 1, 31),
+    entity_df=events_df,
+    entity_id_column="customer_id",
+    timestamp_column="timestamp"
+)
+```
+
+### Benefícios
+
+1. **Prevenção de Data Leakage**: Garante que modelos não sejam treinados com dados do futuro
+2. **Reprodutibilidade**: Datasets podem ser recriados consistentemente
+3. **Avaliação Realista**: Performance do modelo reflete cenários reais de produção
+
 ## Monitoramento com Prometheus
 
 O projeto utiliza Prometheus para monitoramento de métricas. Para acessar:
@@ -528,3 +639,120 @@ A documentação da API está disponível em:
 ## License
 
 MIT
+
+## Feature Pipelines
+
+O Feature Store suporta a criação e gerenciamento de pipelines para computação e atualização automática de features.
+
+### Usando a Interface
+
+1. Acesse o card do Feature Group desejado
+2. Clique em "Mostrar Pipelines"
+3. Clique em "Novo Pipeline"
+4. Configure:
+   - Nome do pipeline
+   - Tipo de transformação (SQL, Python, Pandas)
+   - Código da transformação
+   - Intervalo de execução
+
+Exemplo de transformação SQL:
+```sql
+SELECT 
+    customer_id,
+    COUNT(*) as total_purchases,
+    AVG(amount) as avg_ticket
+FROM orders 
+WHERE created_at >= NOW() - INTERVAL '1 day'
+GROUP BY customer_id
+```
+
+### Usando a API
+
+```python
+pipeline_config = PipelineConfig(
+    transformation_type="sql",
+    source_query="""
+        SELECT 
+            customer_id,
+            COUNT(*) as total_purchases,
+            AVG(amount) as avg_ticket
+        FROM orders 
+        WHERE created_at >= NOW() - INTERVAL '1 day'
+        GROUP BY customer_id
+    """,
+    schedule_interval="daily"
+)
+
+pipeline = await pipeline_service.create_pipeline(
+    name="daily_customer_metrics",
+    feature_group_id="customer_metrics_group",
+    config=pipeline_config
+)
+```
+
+## Point-in-Time Correctness
+
+O Feature Store implementa point-in-time correctness para garantir que não haja data leakage durante o treinamento de modelos.
+
+### Usando a Interface
+
+1. Acesse o card do Feature Group desejado
+2. Clique em "Exportar Dataset"
+3. Configure:
+   - Período do dataset (data inicial e final)
+   - Dados das entidades em formato JSON:
+     ```json
+     {
+       "entity_id": ["customer1", "customer2"],
+       "timestamp": ["2025-01-01T00:00:00", "2025-01-02T00:00:00"]
+     }
+     ```
+4. Clique em "Exportar" para baixar o dataset em CSV
+
+### Usando a API
+
+```python
+import pandas as pd
+from datetime import datetime
+
+# DataFrame com eventos de treinamento
+events_df = pd.DataFrame({
+    "customer_id": ["001", "002", "003"],
+    "timestamp": [
+        "2025-01-01 10:00:00",
+        "2025-01-02 15:30:00",
+        "2025-01-03 09:15:00"
+    ],
+    "target": [1, 0, 1]
+})
+
+# Via Python SDK
+training_data = await feature_store.get_training_dataset(
+    feature_group_id="customer_metrics_group",
+    start_time=datetime(2025, 1, 1),
+    end_time=datetime(2025, 1, 31),
+    entity_df=events_df,
+    entity_id_column="customer_id",
+    timestamp_column="timestamp"
+)
+
+# Via HTTP
+import requests
+
+response = requests.post(
+    "http://localhost:8000/api/v1/feature-groups/seu_grupo_id/training-dataset",
+    json={
+        "entity_df": events_df.to_dict(),
+        "start_time": "2025-01-01T00:00:00",
+        "end_time": "2025-01-31T23:59:59"
+    }
+)
+
+training_data = pd.DataFrame(response.json())
+```
+
+### Benefícios
+
+1. **Prevenção de Data Leakage**: Garante que modelos não sejam treinados com dados do futuro
+2. **Reprodutibilidade**: Datasets podem ser recriados consistentemente
+3. **Avaliação Realista**: Performance do modelo reflete cenários reais de produção

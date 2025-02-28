@@ -1,17 +1,16 @@
 db = db.getSiblingDB('feature_store');
 
-// Criar coleção features se não existir
-if (!db.getCollectionNames().includes('features')) {
-    db.createCollection('features');
-    print("Coleção 'features' criada com sucesso!");
-}
+// Create collections if they don't exist
+db.createCollection('feature_groups');
+db.createCollection('features');
+db.createCollection('pipelines');
 
-// Criar coleção feature_groups se não existir
-if (!db.getCollectionNames().includes('feature_groups')) {
-    db.createCollection('feature_groups');
-    print("Coleção 'feature_groups' criada com sucesso!");
-}
-
-// Criar alguns índices úteis
-db.features.createIndex({ "name": 1 }, { unique: true });
+// Create indexes
 db.feature_groups.createIndex({ "name": 1 }, { unique: true });
+db.features.createIndex({ "name": 1, "feature_group_id": 1 }, { unique: true });
+db.features.createIndex({ "feature_group_id": 1 });
+db.pipelines.createIndex({ "name": 1 }, { unique: true });
+db.pipelines.createIndex({ "feature_group_id": 1 });
+
+// Create TTL index for pipeline runs
+db.pipeline_runs.createIndex({ "created_at": 1 }, { expireAfterSeconds: 604800 }); // 7 days

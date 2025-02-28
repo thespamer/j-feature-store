@@ -3,8 +3,9 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, status
 from app.models.feature import Feature, FeatureValue, FeatureCreate
-from app.services.feature_store import FeatureStore, FeatureNotFoundError, ValidationError
+from app.services.feature_store import FeatureStore, FeatureNotFoundError
 from app.core.store import get_feature_store
+from app.core.validation import ValidationError
 
 router = APIRouter()
 

@@ -1,0 +1,74 @@
+{
+    "name": "customer_features_pipeline",
+    "description": "Pipeline para processar features de clientes",
+    "source": {
+        "type": "postgresql",
+        "config": {
+            "table": "customers",
+            "join_tables": ["orders", "order_items"],
+            "incremental_field": "updated_at"
+        }
+    },
+    "transformations": [
+        {
+            "type": "sql",
+            "name": "customer_features",
+            "file": "/app/data/transformations/customer_features.sql"
+        }
+    ],
+    "schedule": {
+        "interval": "daily",
+        "start_time": "00:00:00"
+    },
+    "sink": {
+        "type": "feature_store",
+        "config": {
+            "feature_group": "customer_features",
+            "version": "1.0",
+            "features": [
+                {
+                    "name": "total_orders",
+                    "type": "int",
+                    "description": "Total de pedidos do cliente"
+                },
+                {
+                    "name": "total_spent",
+                    "type": "float",
+                    "description": "Valor total gasto pelo cliente"
+                },
+                {
+                    "name": "avg_order_value",
+                    "type": "float",
+                    "description": "Valor médio dos pedidos"
+                },
+                {
+                    "name": "days_since_last_order",
+                    "type": "int",
+                    "description": "Dias desde o último pedido"
+                },
+                {
+                    "name": "unique_products_bought",
+                    "type": "int",
+                    "description": "Número de produtos únicos comprados"
+                },
+                {
+                    "name": "total_items_bought",
+                    "type": "int",
+                    "description": "Total de itens comprados"
+                },
+                {
+                    "name": "average_order_value",
+                    "type": "float",
+                    "description": "Valor médio por pedido"
+                },
+                {
+                    "name": "average_items_per_order",
+                    "type": "float",
+                    "description": "Média de itens por pedido"
+                }
+            ],
+            "tags": ["customer", "orders", "metrics"],
+            "primary_key": ["customer_id"]
+        }
+    }
+}

@@ -1,38 +1,25 @@
-"""Feature store service."""
-from typing import List, Optional, Dict, Any
+"""Serviço principal do Feature Store."""
 from datetime import datetime
-import asyncpg
-from motor.motor_asyncio import AsyncIOMotorClient
-from redis.asyncio import Redis
+from typing import List, Optional, Dict, Any
+import pandas as pd
 from bson import ObjectId
+import asyncpg
 
-from app.models.feature import Feature, FeatureValue, FeatureCreate
+from app.models.feature import Feature, FeatureCreate, FeatureUpdate
 from app.models.feature_group import FeatureGroup, FeatureGroupCreate, FeatureGroupUpdate
-from app.registry.validation import validate_feature_definition, validate_feature_value
-from app.transformations.base import BaseTransformation
-from app.transformations.numeric import NumericTransformation
-from app.transformations.categorical import CategoricalTransformation
-from app.transformations.temporal import TemporalTransformation
 from app.core.config import settings
-from app.core.exceptions import ValidationError
+from app.core.validation import validate_feature_definition
 
 class FeatureNotFoundError(Exception):
-    """Raised when a feature is not found."""
     pass
 
 class FeatureStore:
-    """Feature store service."""
-    def __init__(self):
-        """Initialize feature store."""
-        print("Inicializando FeatureStore...")
-        print("Conectando ao MongoDB em:", settings.MONGODB_URL)
-        self.mongo_client = AsyncIOMotorClient(settings.MONGODB_URL)
-        print("Conectando ao Redis em:", settings.REDIS_URL)
-        self.redis_client = Redis.from_url(settings.REDIS_URL)
-        self.postgres_pool = None
-        print("Selecionando database:", settings.MONGODB_DB)
-        self.db = self.mongo_client[settings.MONGODB_DB]
-        print("FeatureStore inicializado com sucesso!")
+    """Serviço para gerenciamento de features."""
+
+    def __init__(self, mongodb_client, postgres_pool: asyncpg.Pool):
+        """Inicializa o feature store."""
+        self.db = mongodb_client
+        self.postgres_pool = postgres_pool
 
     async def initialize(self):
         """Initialize feature store connections."""
@@ -94,14 +81,16 @@ class FeatureStore:
         result = await self.db.features.insert_one(feature_dict)
         feature_dict["id"] = str(result.inserted_id)
         
-        # Atualiza a lista de features no grupo
+        # Se a feature pertence a um grupo, atualiza o grupo
         if feature_data.feature_group_id:
             await self.db.feature_groups.update_one(
                 {"_id": ObjectId(feature_data.feature_group_id)},
-                {"$addToSet": {"features": feature_dict["id"]}}
+                {
+                    "$addToSet": {"features": feature_dict["id"]},
+                    "$set": {"updated_at": datetime.utcnow()}
+                }
             )
         
-        # Agora cria o objeto Feature com o ID
         return Feature(**feature_dict)
 
     async def get_feature(self, feature_id: str) -> Optional[Feature]:
@@ -109,7 +98,7 @@ class FeatureStore:
         feature_data = await self.db.features.find_one({"_id": ObjectId(feature_id)})
         if feature_data:
             return Feature(**self._convert_mongodb_doc(feature_data))
-        return None
+        raise FeatureNotFoundError(f"Feature {feature_id} not found")
 
     async def list_features(self) -> List[Feature]:
         """Lista todas as features."""
@@ -132,6 +121,19 @@ class FeatureStore:
 
     async def delete_feature(self, feature_id: str) -> None:
         """Remove uma feature."""
+        # Primeiro busca a feature para saber seu grupo
+        feature = await self.get_feature(feature_id)
+        if feature and feature.feature_group_id:
+            # Remove a feature do grupo
+            await self.db.feature_groups.update_one(
+                {"_id": ObjectId(feature.feature_group_id)},
+                {
+                    "$pull": {"features": feature_id},
+                    "$set": {"updated_at": datetime.utcnow()}
+                }
+            )
+        
+        # Remove a feature e seus valores
         await self.db.features.delete_one({"_id": ObjectId(feature_id)})
         await self.db.feature_values.delete_many({"feature_id": feature_id})
 
@@ -166,17 +168,17 @@ class FeatureStore:
         group_data = await self.db.feature_groups.find_one({"_id": ObjectId(group_id)})
         if group_data:
             return FeatureGroup(**self._convert_mongodb_doc(group_data))
-        return None
+        raise FeatureNotFoundError(f"Feature group {group_id} not found")
 
     async def list_feature_groups(
         self,
-        skip: int = 0,
-        limit: int = 10,
+        skip: Optional[int] = None,
+        limit: Optional[int] = None,
         entity_type: Optional[str] = None,
         tag: Optional[str] = None,
         status: Optional[str] = None
     ) -> List[FeatureGroup]:
-        """Lista grupos de features com filtros."""
+        """Lista grupos de features com filtros opcionais."""
         query = {}
         if entity_type:
             query["entity_type"] = entity_type
@@ -185,10 +187,16 @@ class FeatureStore:
         if status:
             query["status"] = status
 
-        cursor = self.db.feature_groups.find(query).skip(skip).limit(limit)
+        cursor = self.db.feature_groups.find(query)
+        if skip is not None:
+            cursor = cursor.skip(skip)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+
         groups = []
         async for doc in cursor:
-            groups.append(self._convert_mongodb_doc(doc))
+            converted_doc = self._convert_mongodb_doc(doc)
+            groups.append(FeatureGroup(**converted_doc))
         return groups
 
     async def update_feature_group(
@@ -200,13 +208,22 @@ class FeatureStore:
         update_data = group_update.dict(exclude_unset=True)
         if update_data:
             update_data["updated_at"] = datetime.utcnow()
+            
+            # Se estiver atualizando features, validar se elas existem
+            if "features" in update_data:
+                features = update_data["features"] or []
+                for feature_id in features:
+                    feature = await self.get_feature(feature_id)
+                    if not feature:
+                        raise ValueError(f"Feature {feature_id} não encontrada")
+
             result = await self.db.feature_groups.find_one_and_update(
                 {"_id": ObjectId(group_id)},
                 {"$set": update_data},
-                return_document=ReturnDocument.AFTER
+                return_document=True
             )
             if result:
-                return self._convert_mongodb_doc(result)
+                return FeatureGroup(**self._convert_mongodb_doc(result))
         return None
 
     async def get_features_by_group(self, group_id: str) -> List[Feature]:
@@ -253,43 +270,141 @@ class FeatureStore:
             
         return stats
 
-    async def list_feature_groups(self) -> List[FeatureGroup]:
-        """Lista todos os grupos de features."""
-        try:
-            groups = []
-            async for group_data in self.db.feature_groups.find():
-                converted_data = self._convert_mongodb_doc(group_data)
-                groups.append(FeatureGroup(**converted_data))
-            return groups
-        except Exception as e:
-            print("Erro ao listar grupos de features:", str(e))
-            raise
-
     async def delete_feature_group(self, group_id: str) -> None:
         """Remove um grupo de features."""
         await self.db.feature_groups.delete_one({"_id": ObjectId(group_id)})
 
-    async def insert_feature_value(self, feature_id: str, value: FeatureValue) -> FeatureValue:
-        """Insere um valor para uma feature."""
-        feature = await self.get_feature(feature_id)
-        if not feature:
-            raise FeatureNotFoundError("Feature não encontrada")
-
-        validate_feature_value(feature, value.value)
+    async def get_feature_values_as_of(
+        self,
+        feature_ids: List[str],
+        entity_ids: List[str],
+        timestamp: datetime
+    ) -> pd.DataFrame:
+        """
+        Recupera valores das features para uma lista de entidades em um ponto específico no tempo.
+        Implementa point-in-time correctness garantindo que só usamos dados disponíveis até o timestamp.
+        """
+        features_data = []
         
-        if feature.transformation:
-            transformer = self._get_transformer(feature)
-            value.value = transformer.transform(value.value)
+        for feature_id in feature_ids:
+            # Obtém a feature
+            feature = await self.get_feature(feature_id)
+            if not feature:
+                continue
+                
+            # Para cada entidade
+            for entity_id in entity_ids:
+                # Busca o último valor antes do timestamp
+                value_doc = await self.db.feature_values.find_one(
+                    {
+                        "feature_id": feature_id,
+                        "entity_id": entity_id,
+                        "timestamp": {"$lte": timestamp}
+                    },
+                    sort=[("timestamp", -1)]
+                )
+                
+                if value_doc:
+                    features_data.append({
+                        "feature_id": feature_id,
+                        "feature_name": feature.name,
+                        "entity_id": entity_id,
+                        "value": value_doc["value"],
+                        "timestamp": value_doc["timestamp"]
+                    })
+                
+        # Converte para DataFrame
+        if not features_data:
+            return pd.DataFrame()
+            
+        df = pd.DataFrame(features_data)
+        
+        # Pivota para ter features como colunas
+        df_pivot = df.pivot(
+            index="entity_id",
+            columns="feature_name",
+            values="value"
+        ).reset_index()
+        
+        return df_pivot
 
-        await self.db.feature_values.insert_one(value.dict())
-        return value
+    async def get_training_dataset(
+        self,
+        feature_group_id: str,
+        start_time: datetime,
+        end_time: datetime,
+        entity_df: pd.DataFrame,
+        entity_id_column: str = "entity_id",
+        timestamp_column: str = "timestamp"
+    ) -> pd.DataFrame:
+        """
+        Cria um dataset de treinamento com point-in-time correctness.
+        
+        Args:
+            feature_group_id: ID do grupo de features
+            start_time: Data inicial para o dataset
+            end_time: Data final para o dataset
+            entity_df: DataFrame com IDs das entidades e timestamps
+            entity_id_column: Nome da coluna com IDs das entidades
+            timestamp_column: Nome da coluna com timestamps
+        """
+        # Obtém o grupo de features
+        group = await self.get_feature_group(feature_group_id)
+        if not group:
+            raise ValueError(f"Feature group {feature_group_id} not found")
+            
+        # Inicializa DataFrame final
+        final_df = entity_df.copy()
+        
+        # Para cada timestamp único no DataFrame de entidades
+        for timestamp in entity_df[timestamp_column].unique():
+            # Obtém entidades para este timestamp
+            entities_at_time = entity_df[
+                entity_df[timestamp_column] == timestamp
+            ][entity_id_column].tolist()
+            
+            # Obtém valores das features para estas entidades neste ponto no tempo
+            features_df = await self.get_feature_values_as_of(
+                group.features,
+                entities_at_time,
+                timestamp
+            )
+            
+            if not features_df.empty:
+                # Merge com o DataFrame final
+                final_df = pd.merge(
+                    final_df,
+                    features_df,
+                    on=entity_id_column,
+                    how="left"
+                )
+        
+        return final_df
+
+    async def insert_feature_value(
+        self,
+        feature_id: str,
+        value_data: Dict[str, Any]
+    ) -> None:
+        """Insere um novo valor para uma feature."""
+        value_doc = {
+            "feature_id": feature_id,
+            "value": value_data["value"],
+            "timestamp": value_data.get("timestamp", datetime.utcnow()),
+            "metadata": value_data.get("metadata", {})
+        }
+        
+        if "entity_id" in value_data:
+            value_doc["entity_id"] = value_data["entity_id"]
+            
+        await self.db.feature_values.insert_one(value_doc)
 
     async def get_feature_values(
         self,
         feature_id: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None
-    ) -> List[FeatureValue]:
+    ) -> List[Dict[str, Any]]:
         """Obtém valores de uma feature."""
         query = {"feature_id": feature_id}
         if start_time or end_time:
@@ -301,19 +416,8 @@ class FeatureStore:
 
         values = []
         async for value_data in self.db.feature_values.find(query):
-            values.append(FeatureValue(**value_data))
+            values.append(value_data)
         return values
-
-    def _get_transformer(self, feature: Feature) -> BaseTransformation:
-        """Obtém o transformador apropriado para a feature."""
-        if feature.type == "numeric":
-            return NumericTransformation()
-        elif feature.type == "categorical":
-            return CategoricalTransformation()
-        elif feature.type == "temporal":
-            return TemporalTransformation()
-        else:
-            raise ValueError(f"Tipo de feature inválido: {feature.type}")
 
     async def count_features(self) -> int:
         """Conta o número total de features."""
@@ -346,8 +450,7 @@ class FeatureStore:
     async def check_health(self) -> bool:
         """Verifica a saúde do sistema."""
         try:
-            await self.mongo_client.admin.command("ping")
-            self.redis_client.ping()
+            await self.db.command("ping")
             return True
         except:
             return False
@@ -371,7 +474,7 @@ class FeatureStore:
         """Obtém estatísticas de uma feature."""
         feature = await self.get_feature(feature_id)
         if not feature:
-            return None
+            raise FeatureNotFoundError(f"Feature {feature_id} not found")
 
         pipeline = [
             {"$match": {"feature_id": feature_id}},

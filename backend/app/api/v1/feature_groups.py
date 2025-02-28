@@ -1,7 +1,7 @@
 """API endpoints para grupos de features."""
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.core.store import get_store
+from app.core.store import get_feature_store
 from app.services.feature_store import FeatureStore
 from app.models.feature_group import FeatureGroup, FeatureGroupCreate, FeatureGroupUpdate
 
@@ -9,7 +9,7 @@ router = APIRouter()
 
 def get_store() -> FeatureStore:
     """Dependência para obter a instância do FeatureStore."""
-    return get_store()
+    return get_feature_store()
 
 @router.post("/feature-groups", response_model=FeatureGroup)
 async def create_feature_group(feature_group: FeatureGroupCreate, store: FeatureStore = Depends(get_store)):
@@ -21,8 +21,8 @@ async def create_feature_group(feature_group: FeatureGroupCreate, store: Feature
 
 @router.get("/feature-groups", response_model=List[FeatureGroup])
 async def list_feature_groups(
-    skip: int = 0,
-    limit: int = 10,
+    skip: Optional[int] = None,
+    limit: Optional[int] = None,
     entity_type: Optional[str] = None,
     tag: Optional[str] = None,
     status: Optional[str] = Query(None, enum=["active", "deprecated"]),
